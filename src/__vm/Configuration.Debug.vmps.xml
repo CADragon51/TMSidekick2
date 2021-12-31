@@ -1,0 +1,6 @@
+<VisualMicro>
+  <Program Name="TBSidekick" Ext=".ino" Location="C:\Users\CA\Source\Repos\TBSidekick">
+    <Debug DebugMode="Full" DebugEnabled="1" />
+    <Compile />
+  </Program>
+</VisualMicro>
