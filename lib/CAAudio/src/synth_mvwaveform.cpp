@@ -76,6 +76,7 @@ void AudioSynthMVWaveformModulated::update(void)
 	{
 		if (shapedata)
 			release(shapedata);
+		Serial.println("no block");
 		return;
 	}
 	for (int p = 0; p < 3; p++)
@@ -282,6 +283,7 @@ void AudioSynthMVWaveformModulated::update(void)
 				break;
 			}
 			block->data[i] += val;
+//			Serial.println(val);
 			ph += inc;
 			//			ph += inc;
 		}

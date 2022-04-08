@@ -3,323 +3,547 @@ signed char readrec(File frec);
 float floatrec(File frec);
 byte offs = 124;
 void printA4(String);
-class SubMenu
-{
-public:
-	SubMenu(byte *psubitems, Parameter **pParas, byte id)
-	{
-		Paras = pParas;
-		myID = id;
-		subitems = psubitems;
-		numsub = 0;
-//		Serial.println(Paras[myID]->name);
-		for (int s = 0; s < 16; s++)
-		{
-			if (subitems[s] > 0)
-				numsub++;
-			else
-				break;
-			Parameter *mPara = Paras[subitems[s]];
-			//			Serial.println(mPara->name + " " + String(mPara->fvalue));
-			if (Paras[myID]->name == "ADSR")
-			{
-				if (mPara->name.startsWith("VCF"))
-					mPara->name.replace("VCF ", "");
-				if (mPara->name.startsWith("VCA"))
-					mPara->name.replace("VCA ", "");
-			}
-			if (Paras[myID]->name == "Wave")
-			{
-				if (mPara->name.startsWith("VCO"))
-					mPara->name.replace("VCO ", "");
-			}
-			else
-				mPara->name.replace(Paras[myID]->name + " ", "");
-			if (mPara->name.endsWith("Shape"))
-			{
-				hasShape = true;
-				shapeix = s;
-			}
-			//			if(debug==1)Serial.println("Shape?" + mPara->name + " " + String(shapeix));
-		}
-	}
-	Parameter *actPara()
-	{
-		return subPara;
-	}
-	void displayValue(int line, Parameter *aPara)
-	{
-		byte soff = 0;
-		String oval = aPara->format();
-		if (Paras[myID]->name == "EQ")
-		{
-			display.setCursor(6, 7 * 8);
-			//		print(String("                   "),false);
-			print(aPara->name, false);
-			print(":", false);
-			print(oval, false);
-			display.display();
-			return;
-		}
-		if (Paras[myID]->name == "ADSR")
-			soff = 3 * 8;
-		else if (numsub < 7)
-			soff = 5;
-		display.setCursor(6, soff + (line)*8);
-		//		print(String("                   "),false);
-		print(aPara->name, false);
-
-		display.setCursor(offs - 6 * oval.length(), 8 * (line) + soff);
-		print(oval, true);
-		display.display();
-	}
-	void displayMenu(int rot_pos)
-	{
-		//		printA4(String(myID));
-		display.clearDisplay();
-		rot_pos %= numsub + 1;
-		display.setTextSize(1);				 // Normal 1:1 pixel scale
-		display.setTextColor(SSD1306_WHITE); // Draw white text
-		display.cp437(true);				 // Use full 256 char 'Code Page 437' font
-		display.setCursor(0, 0);
-		if (rot_pos == 0)
-			display.setTextColor(0, 1);
-		display.write(17);
-		//		if (debug == 1)			Serial.println("myID " + String(myID));
-		//		if (debug == 1)			Serial.println(Paras[myID]->name);
-
-#if 1
-		byte l = Paras[myID]->name.length();
-		byte ml = 21;
-		byte pad = (ml - l) / 2;
-		byte soff = 0;
-
-		if (Paras[myID]->name == "ADSR")
-			pad += 3;
-		display.setCursor(pad * 6, 2);
-		print(Paras[myID]->name, false);
-		//		display.writeFastHLine(0, 7, 128, 1);
-		display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
-		if (rot_pos == 0)
-			subPara = Paras[myID];
-		{
-			if (Paras[myID]->name == "ADSR")
-				soff = 24;
-			else if (numsub < 7)
-				soff = 5;
-			for (int s = 0; s < numsub; s++)
-			{
-				display.setCursor(6, 8 * (s + 1) + soff);
-				Parameter *mPara = Paras[subitems[s]];
-				print(mPara->name, s + 1 == rot_pos);
-				if (s + 1 == rot_pos)
-					subPara = mPara;
-				if (mPara->submenu || mPara->name.indexOf("Open") > -1)
-				{
-					display.setCursor(120, 8 * (s + 1) + soff);
-					display.write(16);
-				}
-				else if (mPara->parafunction)
-				{
-					display.setCursor(120, 8 * (s + 1) + soff);
-					display.write(15);
-				}
-				else
-				{
-					String oval = mPara->format();
-					display.setCursor(offs - 6 * oval.length(), 8 * (s + 1) + soff);
-					print(oval, s + 1 == rot_pos);
-				}
-			}
-			if (Paras[myID]->name == "ADSR")
-			{
-				Parameter *APara = Paras[subitems[0]];
-				Parameter *DPara = Paras[subitems[1]];
-				Parameter *SPara = Paras[subitems[2]];
-				Parameter *RPara = Paras[subitems[3]];
-				float a = APara->fvalue;
-				float d = DPara->fvalue;
-				float s = SPara->fvalue;
-				float r = RPara->fvalue;
-				float tl = (64 - 16) / (a + d + r);
-				//			if(debug==1)Serial.println("tl=" + String(tl));
-				//			if(debug==1)Serial.println("A=" + String(a) + " D=" + String(d) + " S=" + String(s) + " R=" + String(r));
-				//			if(debug==1)Serial.println("A=" + String(a*tl) + " D=" + String(d * tl) + " S=" + String(s) + " R=" + String(r));
-				display.writeLine(0, 31, int(a * tl), 31 - 24, 1);
-				display.writeLine(int(a * tl), 31 - 24, int(a * tl) + int(d * tl), 31 - s * 24, 1);
-				display.writeLine(int(a * tl) + int(d * tl), 31 - s * 24, int(a * tl) + int(d * tl) + 16, 31 - s * 24, 1);
-				display.writeLine(int(a * tl) + int(d * tl) + 16, 31 - s * 24, int(a * tl) + int(d * tl) + 16 + r * tl, 31, 1);
-			}
-			else if (hasShape)
-			{
-				drawShape();
-			}
-#endif
-			if (comment.length() > 0)
-			{
-				display.setCursor(8, 8 * 7);
-				print(comment);
-			}
-		}
-		display.display();
-	}
-	byte bot = 63;
-	byte top = 63 - 24;
-	byte left = 8;
-	byte right = 64 + 8;
-	byte mid = 32 + 8;
-	byte q1 = 16 + 8;
-	byte q3 = 48 + 8;
-	float f = 44.0 / 7 * 64;
-	String comment = "";
-	void drawShape(void)
-	{
-		byte shape = (byte)Paras[subitems[shapeix]]->fvalue;
-		//		if(debug==1)Serial.println("Shape " + String(shape));
-		switch (shape)
-		{
-		case WAVEFORM_SINE:
-			for (int i = left; i < right; i++)
-				display.drawPixel(i, 52 - 12 * sin((i - left) * f), 1);
-			break;
-		case WAVEFORM_SAWTOOTH:
-		case 9:
-			display.writeLine(left, bot, mid, top, 1);
-			display.writeLine(mid, top, mid, bot, 1);
-			display.writeLine(mid, bot, right, top, 1);
-			display.writeLine(right, top, right, bot, 1);
-			break;
-		case WAVEFORM_SQUARE:
-		case 11:
-			display.writeLine(left, bot, left, top, 1);
-			display.writeLine(left, top, mid, top, 1);
-			display.writeLine(mid, top, mid, bot, 1);
-			display.writeLine(mid, bot, right, bot, 1);
-			display.writeLine(right, bot, right, top, 1);
-			break;
-		case WAVEFORM_TRIANGLE:
-			display.writeLine(left, bot, q1, top, 1);
-			display.writeLine(q1, top, mid, bot, 1);
-			display.writeLine(mid, bot, q3, top, 1);
-			display.writeLine(q3, top, right, bot, 1);
-			break;
-		case WAVEFORM_ARBITRARY:
-
-			for (int i = left; i < right; i++)
-				display.drawPixel(i, 52 - 3 * myWaveform[(i - left) * 4] / 8192, 1);
-			break;
-		case WAVEFORM_PULSE:
-		case 12:
-			display.writeLine(left, bot, left, top, 1);
-			display.writeLine(left, top, q1, top, 1);
-			display.writeLine(q1, top, q1, bot, 1);
-			display.writeLine(q1, bot, right, bot, 1);
-			display.writeLine(right, bot, right, top, 1);
-			break;
-		case WAVEFORM_SAWTOOTH_REVERSE:
-		case 10:
-			display.writeLine(left, bot, left, top, 1);
-			display.writeLine(left, top, mid, bot, 1);
-			display.writeLine(mid, bot, mid, top, 1);
-			display.writeLine(mid, top, right, bot, 1);
-			break;
-		case WAVEFORM_TRIANGLE_VARIABLE:
-			display.writeLine(left, bot, q1 / 2, top, 1);
-			display.writeLine(q1 / 2, top, mid, bot, 1);
-			display.writeLine(mid, bot, q3 - q1 / 2, top, 1);
-			display.writeLine(q3 - q1 / 2, top, right, bot, 1);
-			break;
-		case WAVEFORM_SAMPLE_HOLD:
-			byte y = 63 - random(24);
-			byte y1 = 63 - random(24);
-			for (int i = left; i < right; i += 4)
-			{
-				display.drawLine(i, y, i + 4, y, 1);
-				display.drawLine(i + 4, y, i + 4, y1, 1);
-				y = y1;
-				y1 = 63 - random(24);
-			}
-			break;
-		}
-	}
-	Parameter **Paras;
-	Parameter *subPara = 0;
-	byte myID;
-	byte *subitems;
-	byte numsub = 0;
-	bool hasShape = false;
-	byte shapeix = 0;
-};
-extern float32_t dbBand1[];
-
+#include "submenu.h"
+#include <NativeEthernet.h>
+extern short idt, bp, synthmen[3], men, gra, cped, ledout, semp, semm, octp, octm, idt1, idt2, showstat, idjx, idjy, smen;
+extern String showShape(int sp);
+extern String showADSR(int);
+extern void loadPRS(String);
 class MenuSynth : public MenuPara
 {
 public:
-	MenuSynth(int type) : MenuPara(SYNTHSETTINGS, "Synth Setting", 0)
+	MenuSynth(int type) : MenuPara(SYNTHSETTINGS, "Synth Settings", 0)
 	{
 		parent = MAIN;
 		actSubmenu = submod;
 		int p = 0;
-		//		if(debug==1)Serial.println("cb:"+String( (int)filefunc,HEX));
-		for (p = 1; p < NUMSYNTH; p++)
+		//		DBG("cb:"+String( (int)filefunc,HEX));
+		for (p = 0; p < NUMSYNTH; p++)
 		{
-			//			String spd=synthParas[p].toUpperCase().replace(" ","_");
-				Paras[p] = new Parameter(synthParas[p], synparas[p]->endvalue, p, synparas[p]->dimension, synparas[p]->isFloat);
-			//Serial.println("synparas["+spd+"]=new synPara("+spd+","+String(endvalue[p])+",\""+dimensions[p]+"\","+String(isFloat[p]?"true":"false")+");");
+			Paras[p] = new Parameter(synthParas[p], synparas[p]);
+			//			DBG(String(p) + " " + String((int)Paras[p]));
 		}
-		for (p = FILE_OPEN; p < FILE_OPEN +3; p++)
+		for (p = FILE_OPEN; p < FILE_OPEN + 3; p++)
 			Paras[p] = new Parameter(fileparas[p - FILE_OPEN], 0, p - FILE_OPEN + 1, filefunc);
 		for (int s = 0; s < NUM_SUBMENUS; p++, s++)
 		{
 			Paras[p] = new Parameter(subMenus[s], subParent[s], p);
-//					if(debug==1)	Serial.println(String(p) + ":" + String(s) + " -> " + subMenus[s] + " -> " + String(subParent[s]));
+			//						DBG(String(p) + ":" + String(s) + " -> " + subMenus[s] + " -> " + String(subParent[s]));
 		}
 		for (int s = 0, p = submod; s < NUM_SUBMENUS; s++, p++)
 		{
 			submenus[p] = new SubMenu((byte *)submenustructure[s], Paras, p);
-			if(debug==1)
-			Serial.println("sub menu " + String(p) + " -> " + submenus[p]->subitems[0]);
-		}
 
-		Paras[VCO_SHAPE]->setForm(shapes);
-		Paras[FM_SHAPE]->setForm(shapes);
-		Paras[PW_SHAPE]->setForm(shapes);
-		Paras[AM_SHAPE]->setForm(shapes);
-		Paras[VCF_SHAPE]->setForm(shapes);
-		Paras[VCF_MODE]->setForm(vcftype);
-		Paras[TRIGGER_1]->setForm(selected);
-		Paras[TRIGGER_2]->setForm(selected);
-		Paras[DIRECT]->setForm(selected);
-		Paras[VCA]->setForm(selected);
-		Paras[POLYMODE]->setForm(polymode);
-		Paras[PORTAMENTOTYPE]->setForm(portatype);
+			DBG(" sub menu " + String(p) + " -> " + submenus[p]->subitems[0] + String(s));
+		}
+		FDBG("Size " + SN(sizeof(shapes)));
+		Paras[VCO_SHAPE]->setForm(shapes, 0, 13);
+		Paras[FM_SHAPE]->setForm(shapes, 0, 13);
+		Paras[PM_SHAPE]->setForm(shapes, 0, 13);
+		Paras[AM_SHAPE]->setForm(shapes, 0, 13);
+		Paras[VCF_SHAPE]->setForm(shapes, 0, 13);
+		Paras[VCF_MODE]->setForm(vcftype, 0, 5);
+		Paras[DIRECT]->setForm(selected, 0, 2);
+		Paras[POLYMODE]->setForm(polymode, 0, 2);
+		Paras[PORTAMENTOTYPE]->setForm(portatype, 0, 3);
+		Paras[TRIGGER_1]->setForm(wavenames, 0, 100);
+		Paras[TRIGGER_2]->setForm(wavenames, 0, 100);
 		Parameter::aHIPara = Paras[VCF_HI];
 		Parameter::aLOPara = Paras[VCF_LO];
 		Parameter::aFPara = Paras[VCF_FREQ];
 		Parameter::aDPara = Paras[VCO_DETUNE];
+		Parameter::aRPara = Paras[ADSR_MAG];
 		MenuPara::SynthMenu = this;
-		//		if(debug==1)Serial.println("SynthMenu");
-		//		if(debug==1)Serial.println((int)MenuPara::SynthMenu);
+		//		DBG("SynthMenu");
+		//		DBG((int)MenuPara::SynthMenu);
+	}
+	int getnumItems(void)
+	{
+		//		DBG(String((int)this, HEX) + " -> " + String((int)submenus[actSubmenu], HEX));
+		return submenus[actSubmenu]->numsub;
+	}
+	bool isSlider(int k)
+	{
+		int i = id2synth[k];
+		//		DBG(SN(i) + " " + Paras[i]->name + SN(Paras[i]->isFloat ? "f" : "i"));
+		return Paras[i]->isFloat;
+	}
+	void checkcontrol(int type, int id, int select = 0, float value = 0, bool swval = false)
+	{
+		//		DBG(SN(type) + " : " + SN(id) + " " + SN(value) + " " + id2para[id]);
+		//		return;
+		int sp = id2para[id];
+		Parameter *para = Paras[sp];
+		//		int posy = 100;
+		//		int option = value + 1;
+		switch (type)
+		{
+		case SLIDER:
+			para->fvalue = value;
+			if (sp == ADSR_MAG)
+			{
+				for (int s = 1; s < 9; s++)
+				{
+					byte asp = id2synth[s];
+					Parameter *apara = Paras[asp];
+					if (apara->name.indexOf("Att") > -1 || apara->name.indexOf("Dec") > -1 || apara->name.indexOf("Rel") > -1)
+					{
+						apara->setSynthVal(__CALLER__);
+						webgui.setMonitor(apara->monid, apara->format());
+					}
+				}
+			}
+			webgui.setMonitor(id - 1, para->format());
+			para->setSynthVal(__CALLER__);
+			if (para->name.indexOf("Att") > -1 || para->name.indexOf("Dec") > -1 || para->name.indexOf("Rel") > -1 || para->name.indexOf("Sus") > -1)
+			{
+				if (actSubmenu == MENU_VCA)
+					webgui.setMonitor(synthmen[para->sc], showADSR(2));
+				else if (actSubmenu == MENU_VCF)
+					webgui.setMonitor(synthmen[para->sc], showADSR(1));
+				else
+					webgui.setMonitor(synthmen[para->sc], showADSR(0));
+			}
+			break;
+		case OPTION:
+			FDBG("option: " + SN(id) + " " + SN(sp) + " " + SN(value));
+			// if (!sp)
+			// {
+			// 	FDBG("Open " + presetnames[option] + ".PRS");
+			// 	loadPRS(presetnames[option]);
+			// 	preindex = option;
+			// 	return;
+			// }
+			para->fvalue = value;
+			para->setSynthVal(__CALLER__);
+			//			if (para->fvalue)
+			{
+				//				int s = ((MenuSynth *)MenuPara::SynthMenu)->getValue(sp);
+				//				webgui.remove(synthmen[para->sc]);
+				//				synthmen[para->sc] = webgui.addStringDisplay(para->name + " " + shapes[s], 150, 100 + para->sc * 250);
+				//				webgui.setMonitor(synthmen[para->sc], showShape(sp));
+			}
+			break;
+		case CHECKBOX:
+			//			DBG(SN(id) + " switched ");
+			para->fvalue = swval;
+			para->setSynthVal(__CALLER__);
+			break;
+		}
+	}
+	void setLength(int myID)
+	{
+		if (lmyid == myID)
+			return;
+		lmyid = myID;
+
+		int s = pmstart[myID];
+		int e = pmend[myID];
+		for (int k = s; k < e; k++)
+		{
+			int i = id2synth[k];
+			String name = synthParas[i];
+			int l = name.length();
+			int lp = 0;
+			if (l > maxiteml)
+				maxiteml = l;
+			if (Paras[i] != 0)
+			{
+				lp = Paras[i]->setLength();
+				if (lp > maxvall)
+					maxvall = lp;
+			}
+		}
+		//		DBG(items[0] + " il: " + SN(maxiteml) + " ,vl: " + SN(maxvall));
+	}
+	int lmyid = 0;
+	int orp = -1;
+	int omyID;
+	void setMonitor(void)
+	{
+		//		if (rot_pos == orp)
+		//			return;
+		orp = rot_pos;
+		int actsb = actSubmenu;
+		SubMenu *sb = submenus[actsb];
+		omyID = sb->myID;
+		String name = sb->Paras[sb->myID]->name;
+
+		setLength(sb->myID);
+		int widthl = maxiteml * 6;
+		int widthr = maxvall * 6;
+		int width = widthr + widthl;
+		if (width < 150)
+			width = 150;
+		for (int i = 0; i < 20 && 0; i++)
+		{
+			if (menuId[i] > 0)
+				webgui.remove(i);
+			menuId[i] = -1;
+		}
+
+		sb->showMenu(rot_pos);
+		String outmen = " <style>  table td  {  font-size : 14px; height:25px; width: " + String(width) + "px; } </style> ";
+		outmen += "<style>.alnleft {font-size : 14px;text-align : left;  width: " + String(widthl) + "px ;}</style> ";
+		outmen += "<table>";
+
+		outmen += synthstr + "</table";
+		if (sb->myID == subVCO || sb->myID == subVCA || sb->myID == subVCF)
+		{
+			webgui.remove(men);
+			webgui.remove(smen);
+			return;
+		}
+		if (sb->myID == subKeys || sb->myID == subSample)
+		{
+			webgui.remove(men);
+			webgui.setMonitor(smen, outmen);
+		}
+		else
+			webgui.remove(smen);
+		if (synthstr.length() > 0)
+			webgui.setMonitor(men, outmen);
+		//		FDBG("outmen.length()");
+		//		FDBG(outmen.length());
+		if (outmen.length() < 250)
+			webgui.remove(men);
+	}
+	String synthstr;
+	void createControl(int myID)
+	{
+		int s = pmstart[myID];
+		int e = pmend[myID];
+		int base = 60;
+		int shape = pmshape[myID];
+		bool sws[20];
+		int posx = base;
+		int posy = 100;
+		String swn = "";
+		if (lmyid != myID)
+			setLength(myID);
+		synthstr = "";
+		lmyid = myID;
+		int widthl = maxiteml * 6;
+		int widthr = maxvall * 6;
+		//		DBG("right geometry: " + SN(widthl + widthr));
+		int ns = 0;
+		String outmen = "";
+		maxg = 0;
+		posx += widthl + widthr;
+
+		int sci = 0;
+
+		for (int k = s; k < e; k++)
+		{
+			int i = id2synth[k];
+			String name = synthParas[i];
+//			FDBG("create " + name+" "+SN(i));
+			if (Paras[i] == 0 || Paras[i]->form == 0)
+				continue;
+			String fx;
+			int t = getType(i, fx) + 1;
+
+			//			FDBG(SN(i) + " " + Paras[i]->name + " " + Paras[i]->form[0] + " " + SN(sci)+" "+SN(t)+" "+fx);
+			int si = Paras[i]->getValue();
+			String title = "f";
+			if (t > 2 && t < 20)
+			{
+				int posx = 250 + sci * 260;
+				int posy = 400;
+				if (myID == MENU_VCF)
+				{
+					if (k == 28)
+					{
+						posx = 600;
+						posy = 550;
+					}
+					if (k == 25)
+					{
+						posx = 1400;
+						posy = 400;
+						//						posx = 100;
+						//						posy = 400;
+					}
+					//					FDBG(SN(k) + " " + name + " " + SN(posx) + "," + SN(posy));
+				}
+				if (myID == MENU_VCA)
+				{
+					if (k == 40)
+					{
+						posx = 600;
+						posy = 550;
+					}
+				}
+				if (myID == MENU_VCO)
+				{
+					if (k == 14)
+					{
+						posx = 1350;
+						posy = 420;
+					}
+					else if (k == 17)
+					{
+						posx = 600;
+						posy = 250;
+					}
+					else if (k == 20)
+					{
+						posx = 600;
+						posy = 550;
+					}
+				}
+				else if (myID == MENU_KEYS)
+				{
+					posx = 420;
+					posy = 150;
+					title = "title";
+				}
+				//					FDBG(SN(myID) + " " + SN(k) + " " + name + " " + SN(posx) + "," + SN(posy) + " " + SN(sci) + " " + SN(synthmen[sci]) );
+
+				webgui.remove(synthmen[sci]);
+				String sh = showShape(i);
+				synthmen[sci] = webgui.addStringDisplay(synthParas[i], posx - 70, posy + 50, "titlex");
+				webgui.setMonitor(synthmen[sci], sh);
+				guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, posx, posy, si, title, "nomonitor"); //*Paras[i]->value);
+//				FDBG("set option " + SN(guiid[maxg]));																													//				FDBG(SN(synthmen[sci]) + " " + SN(guiid[maxg]) );
+				id2para[guiid[maxg]] = i;
+				Paras[i]->sc = sci;
+				sci++;
+				maxg++;
+			}
+			if (t > 20)
+			{
+				wavenames[0] = "Select";
+				guiid[maxg] = webgui.addOptions(Paras[i]->name, maxsamples, wavenames, &onOptionSelect, 450, posy + 40 + (i - 13) * 80, si, "title"); //*Paras[i]->value);
+				FDBG(Paras[i]->name + " " + SN(maxsamples) + " " + SN(i) + " " + SN(guiid[maxg]));
+				id2para[guiid[maxg]] = i;
+				Paras[i]->sc = sci;
+				sci++;
+				maxg++;
+			}
+		}
+		if (shape == -1)
+		{
+			webgui.remove(synthmen[sci]);
+			synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 248, posy + 260, "f");
+			webgui.setMonitor(synthmen[0], showADSR(0));
+			posx = 200;
+		}
+
+		for (int k = s; k < e; k++)
+		{
+			int i = id2synth[k];
+			String name = synthParas[i];
+			if (Paras[i] == 0)
+				continue;
+			if (Paras[i]->form != 0 && Paras[i]->vend > 1)
+				continue;
+			if (Paras[i]->isAnalog)
+			{
+				ns++;
+			}
+			else
+			{
+				name = name.replace("FFM ", "");
+				name = name.replace("AM ", "");
+				name = name.replace("PM ", "");
+				name = name.replace("FM ", "");
+				name = name.replace("VCO ", "");
+				name = name.replace("Poly ", "");
+				name = name.replace("Portam. ", "");
+				name = name.replace("Sample", "");
+				name = name.replace("ADSR", "");
+				name = name.replace("VCA ", "").replace("VCF ", "");
+				synthstr += "<tr>";
+				synthstr += "<td> " + name + "</td>";
+				//				synthstr += "<td class=\'alnright\'> &nbsp;</td>";
+				synthstr += "</tr>";
+			}
+		}
+		maxg = 0;
+		int spx = posx, spy = posy, sf = 0;
+		for (int k = s; k < e; k++)
+		{
+			int i = id2synth[k];
+			if (!Paras[i]->isFloat)
+				continue;
+			String name = synthParas[i];
+			//			DBG(name);
+			if (k != 1 && k != 5)
+			{
+				name = name.replace("VCA ", "").replace("VCF ", "");
+			}
+
+			name = name.replace("VCO ", "");
+			name = name.replace("FFM ", "");
+			name = name.replace("Poly ", "");
+			name = name.replace("Portam. ", "");
+			name = name.replace("Sample", "");
+			name = name.replace("ADSR", "");
+			if (myID == MENU_VCO)
+			{
+				if (k <= 13)
+				{
+					spy = 350;
+					spx = 700;
+				}
+				else if (k <= 16)
+				{
+					spy = 500;
+					spx = 100;
+					sf = k - 13;
+				}
+				else
+				{
+					spy = 200;
+					spx = 100;
+					sf = k - 16;
+				}
+			}
+			if (myID == MENU_KEYS)
+				spx = 200;
+			if (myID == MENU_VCF)
+			{
+				//				FDBG(SN(k) + " " + name + " " + SN(posx) + "," + SN(posy));
+				if (k <= 24)
+				{
+					spy = 350;
+					spx = 750;
+				}
+				else if (k <= 27)
+				{
+					spy = 500;
+					spx = 100;
+					sf = k - 24;
+				}
+				else
+				{
+					spy = 200;
+					spx = 20;
+					sf = k - 27;
+					if (k == 29)
+					{
+						webgui.remove(synthmen[sci]);
+						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 570, spy, "f");
+						webgui.setMonitor(synthmen[sci], showADSR(1));
+					}
+					Paras[i]->sc = sci;
+				}
+			}
+			if (myID == MENU_VCA)
+			{
+				//				FDBG(SN(myID) + " " + SN(k) + " " + name + " " + SN(posx) + "," + SN(posy));
+				if (k <= 36)
+				{
+					spy = 200;
+					spx = 180;
+					if (k == 33)
+					{
+						webgui.remove(synthmen[sci]);
+						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 390, spy, "f");
+						webgui.setMonitor(synthmen[sci], showADSR(2));
+					}
+					Paras[i]->sc = sci;
+				}
+				else if (k <= 37)
+				{
+					spy = 350;
+					spx = 750;
+					sf = k - 36;
+				}
+				else
+				{
+					spy = 500;
+					spx = 200;
+					sf = k - 37;
+				}
+			}
+			else if (shape == -1)
+				Paras[i]->sc = sci;
+			if (shape == -1)
+			{
+				FDBG(name + " " + SN(k) + " " + SN(spx));
+				if (k == 1 || k == 5)
+					spx += 40;
+			}
+			int ret = webgui.addNumericDisplay(name, spx + 60 + sf * 80, spy + 200, "f", "nomonitor");
+			Paras[i]->monid = ret;
+			webgui.setMonitor(ret, Paras[i]->format());
+			guiid[maxg] = webgui.addInputAnalog(name, 0, Paras[i]->fvend, Paras[i]->fvalue, &onSlider, spx + sf * 80, spy, "title", "controlx");
+			if (guiid[maxg] == -1)
+				guiid[maxg] = webgui.addInputAnalog(name, 0, Paras[i]->fvend, 0, &onSlider, spx + sf * 80, spy, "title", "controlx");
+			//			FDBG(SN(k) + " " + name + " " + SN(spx + sf * 80) + "," + SN(spy));
+			id2para[guiid[maxg]] = i;
+			maxg++;
+			sf++;
+		}
+		int inpx = 250 + 300;
+		int inph = 29;
+		int inpy = 100 + 10;
+		int j = 0;
+		if (myID == MENU_VCF)
+			j = 2;
+		if (myID == MENU_VCO)
+			j = 3;
+		for (int k = s; k < e; k++)
+		{
+			int i = id2synth[k];
+			if (Paras[i]->isFloat)
+				continue;
+			//			DBG(Paras[i]->name + " " + Paras[i]->vend);
+			if (Paras[i]->vend == 1)
+			{
+				//				DBG(SN(i) + " " + SN(j) + " " + Paras[i]->name);
+				sws[0] = Paras[i]->getValue();
+				guiid[maxg] = webgui.addSwitches(Paras[i]->name, 1, sws, &onSwitches, inpx, inpy + j++ * inph, "f", "nomonitor");
+				id2para[guiid[maxg]] = i;
+				maxg++;
+			}
+		}
+		return;
+	}
+
+	float getValue(int what)
+	{
+		if (what < 0 || what > NUMSYNTH)
+			return -1;
+		return Paras[what]->fvalue;
+	}
+	int getType(int what, String &fo)
+	{
+		if (what < 0 || what > NUMSYNTH)
+			return -1;
+		if (Paras[what]->form != 0)
+		{
+			fo = Paras[what]->form[(int)Paras[what]->fvalue];
+			return Paras[what]->vend;
+		}
+		return Paras[what]->vend;
 	}
 	void onBackButton(void)
 	{
 		printA4(String(actSubmenu));
-		if (debug == 1)
-			Serial.println(String(rot_pos) + " Back Synth click @" + String(Paras[actSubmenu]->parent));
+		//
+		orp = -1;
+		//		DBG(String(submenus[actSubmenu]->rot_pos) + "********************* Back Synth click @" + String(Paras[actSubmenu]->parent));
 		if (Paras[actSubmenu]->parent > 0)
 		{
-			submenus[actSubmenu]->displayMenu(0);
+			//			submenus[actSubmenu]->displayMenu(0);
 			actSubmenu = Paras[actSubmenu]->parent;
+			//			DBG(SN(submenus[actSubmenu]->myID) + " " + SN(rot_pos));
+			rot_pos = submenus[actSubmenu]->rot_pos;
+			encoder->setPosition(rot_pos, __CALLER__);
 			submenus[actSubmenu]->displayMenu(0);
 			saveTMS();
-			if (debug == 1)
-				Serial.println(String(rot_pos) + " Synth click parent " + String(actSubmenu));
+
+			DBG(String(rot_pos) + " Synth click parent " + String(actSubmenu));
 			return;
 		}
 		else
 		{
 			actSubmenu = submod;
 			menuState = MAIN;
+			isshowing = MAIN;
 			if (Menus[SETTINGS]->hiRes > 0)
 			{
 				Menus[HIRES]->myEnc->write(imap(Menus[MAIN]->rot_pos, 0, 24, 0, 10000));
@@ -330,15 +554,19 @@ public:
 		}
 	}
 
-	void onButton(bool cancel) override
+	void onButton(bool cancel = false) override
 	{
 		//		if (rot_pos > submenus[actSubmenu]->numsub)
 		//			rot_pos = 0;
-		actPara = submenus[actSubmenu]->actPara();
-		//		if (debug == 1)
-		Serial.println(String(submenus[actSubmenu]->numsub) + " " + String(rot_pos) + " Synth click @" + String(actSubmenu) + " " + actPara->name + " " + String(actPara->submenu) + " " + String(actPara->parent));
-		//		if(debug==1)Serial.println(String(rot_pos) + " Synth click @" + String((int)submenus[actSubmenu]) );
-		rot_pos = rot_pos % (submenus[actSubmenu]->numsub + 1);
+		actPara = submenus[actSubmenu]->actPara(rot_pos - 1, actSubmenu);
+		orp = -1;
+		if (0)
+		{
+			FDBG(String(submenus[actSubmenu]->numsub) + " " + String(rot_pos) + " Synth click @" + String(actSubmenu) + " " + actPara->name + " " + String(actPara->submenu) + " " + String(actPara->parent));
+			FDBG(String((int)actPara->parafunction));
+			FDBG(submenus[actSubmenu]->subitems[0]);
+		}
+		//		rot_pos = rot_pos % (submenus[actSubmenu]->numsub + 1);
 		if (!rot_pos)
 		{
 			onBackButton();
@@ -348,7 +576,12 @@ public:
 		{
 			if (actPara->submenu > 0)
 			{
+				submenus[actSubmenu]->rot_pos = rot_pos;
 				actSubmenu = actPara->submenu;
+				//				DBG(actSubmenu);
+				rot_pos = 1;
+				encoder->setPosition(rot_pos, __CALLER__);
+				//				if(actSubmenu!=subKeys)
 				submenus[actSubmenu]->displayMenu(rot_pos);
 				saveTMS();
 				return;
@@ -357,7 +590,10 @@ public:
 			{
 				opencalled = false;
 				actPara->parafunction(actPara->vstart);
+				//				DBG("calling display " + String(actSubmenu) + " " + Paras[submenus[actSubmenu]->myID]->name);
+				//				if (!opencalled)
 				submenus[actSubmenu]->displayMenu(actPara->vstart);
+				//				DBG("changing display to " + String(menuState));
 				return;
 			}
 		}
@@ -366,42 +602,44 @@ public:
 		para_sel = !para_sel;
 		if (para_sel)
 		{
-			pararot_pos = actPara->fvalue;
-			paraencoder->setPosition(pararot_pos);
-			oldval = actPara->fvalue;
-			//			Serial.println("set enc " + String(actPara->isFloat ? "f" : "i") + "->" + String(actPara->fvend));
+#if 1
+			pararot_pos = actPara->getValue();
+			paraencoder->setPosition(pararot_pos, __CALLER__);
+			oldval = actPara->getValue();
+			//			DBG("set enc " + String(actPara->isFloat ? "f" : "i") + "->" + String(actPara->fvend));
 			if (!actPara->isFloat && !cancel && oldfvalue == -1)
 				oldfvalue = oldval;
 			if (Menus[SETTINGS]->hiRes > 0 && actPara->isFloat)
 			{
-				float tv = actPara->fvalue;
+				float tv = actPara->getValue();
 				if (oldfvalue == -1 && !cancel)
 					oldfvalue = tv;
 				int setv = fmap(tv, 0, actPara->fvend, 0, 10000);
-				if (debug == 1)
-					Serial.println("set enc " + String(tv) + "->" + String(oldfvalue));
+
+				FDBG("set enc " + String(tv) + "->" + String(oldfvalue));
 				Menus[HIRES]->myEnc->write(setv);
 			}
+#endif
 		}
 		else if (cancel)
 		{
 			actPara->fvalue = oldfvalue;
 			printA4(oldfvalue);
 			oldfvalue = -1;
-			show(true, 349);
+			show(true, __LINE__);
 		}
 	}
-	virtual void displayMenu(void) override
+	virtual void displayMenu(String line) override
 	{
 		submenus[actSubmenu]->displayMenu(rot_pos);
 
 		isshowing = myID;
-		//		if(debug==1)Serial.println("showing " + items[ml-1]);
+		//		DBG("showing " + items[ml-1]);
 	}
 	void pararot_test()
 	{
 		paraencoder->tick();
-		int newPos = paraencoder->getPosition();
+		int newPos = paraencoder->getPosition(__CALLER__);
 		pararot_dir = (int)paraencoder->getDirection();
 		if (Menus[SETTINGS]->hiRes && !pararot_dir)
 		{
@@ -417,7 +655,7 @@ public:
 				Serial.print(" new:");
 				Serial.print(newPos);
 				Serial.print(" dir:");
-				Serial.println(pararot_dir);
+				DBG(pararot_dir);
 			}
 		}
 		if (pararot_pos != newPos && pararot_dir)
@@ -426,27 +664,27 @@ public:
 
 			if (actPara)
 			{
-				//				if(debug==1)Serial.println(pararot_dir);
+				//				DBG(pararot_dir);
 				if (pararot_pos > actPara->fvend)
 					pararot_pos = actPara->fvstart;
 				else if (pararot_pos < actPara->fvstart)
 					pararot_pos = actPara->fvend;
 			}
 
-			paraencoder->setPosition(pararot_pos);
-			//        if(debug==1)Serial.print("pos:");
-			//        if(debug==1)Serial.print(pararot_pos);
-			//        if(debug==1)Serial.print(" dir:");
-			//        if(debug==1)Serial.println(pararot_dir);
+			paraencoder->setPosition(pararot_pos, __CALLER__);
+			//        Serial.print("pos:");
+			//        Serial.print(pararot_pos);
+			//        Serial.print(" dir:");
+			//        DBG(pararot_dir);
 		}
 	}
 	int oldval = -1;
-	void show(bool force, int caller) override
+	void show(bool force, String caller) override
 	{
 		nump = numitems - 1;
 
 		static float foldval = -1;
-		//		if(debug==1)Serial.println(String(actSubmenu) + " " + actPara->name + " " + String(actPara->submenu) + " " + String(opencalled ? 1 : 0));
+		//		DBG(String(actSubmenu) + " " + actPara->name + " " + String(actPara->submenu) + " " + String(opencalled ? 1 : 0));
 		if (opencalled)
 		{
 			force = true;
@@ -461,8 +699,8 @@ public:
 				pvalue = pararot_pos;
 				if (oldval == pvalue)
 					return;
-				if (debug == 1)
-					Serial.println("Rot " + String(pararot_pos) + " " + String(actPara->fvalue));
+
+				DBG("Rot " + String(pararot_pos) + " " + String(actPara->fvalue));
 				oldval = pvalue;
 				actPara->fvalue = pvalue;
 				submenus[actSubmenu]->displayMenu(rot_pos);
@@ -476,10 +714,12 @@ public:
 					//					float tv = *actPara->tvalue;
 					//					float m=actPara->fvend/10000;
 					//					int setv = tv*m;
-					//					Serial.println("set enc "+String(m)+"->"+String(setv));
+					//					DBG("set enc "+String(m)+"->"+String(setv));
 					//					Menus[HIRES]->myEnc->write(setv);
 					val = Menus[HIRES]->rawvalue;
+					//				DBG(actPara->name + " = " + String(val) + " " + String(actPara->fvstart) + " " + String(actPara->fvend));
 					val = fmap(val, 0, 10000, actPara->fvstart, actPara->fvend);
+					//				DBG(actPara->name + " = " + String(val));
 				}
 				else
 				{
@@ -491,20 +731,22 @@ public:
 				//				actPara->fvalue = fmap(val, 0, 1792, actPara->fvstart, actPara->fvend);
 
 				actPara->fvalue = val;
-				if (debug == 2)
-					Serial.println(actPara->name + " = " + String(actPara->fvalue));
+				FDBG(actPara->name + " = " + String(actPara->fvalue));
 				foldval = val;
 				printA4(String(val));
 				submenus[actSubmenu]->displayMenu(rot_pos);
 			}
 			submenus[actSubmenu]->displayValue(rot_pos, actPara);
-			actPara->setSynthVal();
+			actPara->setSynthVal(__CALLER__);
 			return;
 		}
 
 		if (!force)
 		{
+			//			int orp = rot_pos;
 			rot_test();
+			//			if(orp!=rot_pos)
+			//				DBG(SN(orp)+" # "+SN(rot_pos));
 			if (rot_dir == (int)RotaryEncoder::Direction::NOROTATION && oldmenuState == menuState)
 			{
 				return;
@@ -515,47 +757,41 @@ public:
 			oldmenuState = menuState;
 		}
 
-		displayMenu();
+		displayMenu(__CALLER__);
 	}
 	void save(File frec)
 	{
-		Serial.println("Saving # " + String(NUMSYNTH) + " data");
+		// DBG("Saving # " + String(NUMSYNTH) + " data");
 		for (int p = 1; p < NUMSYNTH; p++)
 		{
-			if (debug == 2)
-				Serial.println(Paras[p]->name + " = " + String(Paras[p]->fvalue));
+			//			FDBG(SN(p)+" "+Paras[p]->name + " => " + String(Paras[p]->fvalue));
 			frec.write((char *)&Paras[p]->fvalue, 4);
+			frec.write((char *)&Paras[p]->source, 4);
 		}
 	}
 	virtual void restore(File frec) override
 	{
-		Serial.println("Restoring # " + String(NUMSYNTH) + " data");
+		//.println("Restoring # " + String(NUMSYNTH) + " data");
 		for (int p = 1; p < NUMSYNTH; p++)
 		{
 			Paras[p]->fvalue = floatrec(frec);
-			if(debug==1)Serial.println(Paras[p]->name + " = " + String(Paras[p]->fvalue));
-			if (p != TRIGGER_1 && p != TRIGGER_2)
-				Paras[p]->setSynthVal();
+			Paras[p]->source = intrec(frec);
+
+			//			FDBG(SN(p)+" "+Paras[p]->name + " <= " + String(Paras[p]->fvalue));
+			Paras[p]->setSynthVal(__CALLER__);
 		}
-#if 0
-		for (int b = EQBAND1; b <= EQBAND16; b++)
-		{
-			Paras[b]->fvalue = dbBand1[b - EQBAND1];
-			//			Serial.println("EQ band " + String(b - EQBAND1) + " " + String(Paras[b]->fvalue));
-		}
-#endif
 	}
 	static void filefunc(signed char type)
 	{
-		//		if (debug == 1)
-		Serial.println("Callback " + String(type));
+		//
 		if (type == 1)
 		{
 			menuState = PRESETS;
 			opencalled = true;
+			//			DBG("Callback " + String(type));
 			return;
 		}
-		//		String prename = "PRESET" + String(recentPre) + ".PRS";
+		String prename = "PRESET" + String(recentPre) + ".PRS";
 		if (type == 3)
 		{
 			prename = "PRESET" + String(++actPre) + ".PRS";
@@ -566,21 +802,28 @@ public:
 		if (SD.exists(prename.c_str()))
 		{
 			SD.remove(prename.c_str());
-			//    if(debug==1)Serial.println("ini deleted");
+			//    DBG("ini deleted");
 		}
 		File frec = SD.open(prename.c_str(), FILE_WRITE);
 		if (frec)
 		{
-			if (debug == 1)
-				Serial.println(prename);
+
+			DBG(prename);
 			MenuSynth *mPara = (MenuSynth *)(Menus[SYNTHSETTINGS]);
 			mPara->save(frec);
 			frec.close();
-			if (debug == 1)
-				Serial.println("Preset saved");
+
+			DBG("Preset saved");
 			((MenuSynth *)SynthMenu)->submenus[actSubmenu]->comment = "saved " + prename;
 		}
 	}
 	SubMenu *submenus[100];
 	static bool opencalled;
+	const String polymode[2] = {"MONO", "POLY"};
+	const String portatype[3] = {"_", "LIN", "EXP"};
+	const String vcftype[5] = {"Off", "LP", "BP", "HP", "Moog"};
+	// String ranges[7] = {"64", "32", "16", "8", "4", "2", "1"};
+	// String taps[16] = {"0", "1", "2", "1-2", "3", "1-3", "2-3", "1-2-3", "4", "1-4", "2-4", "1-2-4", "3-4", "1-3-4", "2-3-4", "1-2-3-4"};
+	// float vtaps[16] = {0, 1, 1, 0.5, 1, 0.5, 0.5, 1.0 / 3.0, 1, 0.5, 0.5, 1.0 / 3.0, 0.5, 1.0 / 3.0, 1.0 / 3.0, 0.25};
+	const String shapes[13] = {"Sine", "Sawtooth", "Square", "Triangle", "Arbitrary", "Pulse", "Rev. Saw", "S&H", "Var. Tri", "BL Saw", "BL SAW R", "BL Square", "BL Pulse"};
 };

@@ -10,6 +10,20 @@
         "vector": "cpp",
         "random": "cpp",
         "cmath": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp",
+        "cstdio": "cpp",
+        "cstdint": "cpp",
+        "functional": "cpp",
+        "exception": "cpp",
+        "new": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "numeric": "cpp",
+        "system_error": "cpp"
     }
 }

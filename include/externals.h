@@ -1,9 +1,10 @@
 #pragma once
+#define FSR_PIN 40
 int imap(int x, int in_min, int in_max, int out_min, int out_max);
 float fmap(float x, float in_min, float in_max, float out_min, float out_max);
 signed char readrec(File frec);
-#include "SSD1309AsciiSpi1.h"
-extern SSD1309AsciiSpi1 oled;
+//#include "SSD1309AsciiSpi1.h"
+// extern SSD1309AsciiSpi1 oled;
 class MenuExtSet : public MenuPara
 {
 public:
@@ -19,9 +20,9 @@ public:
 			paraID[nump - 1] = pcalibrate->me;
 			Paras[nump++] = new Parameter("CC", &extCC, 0, 127);
 			Paras[nump++] = new Parameter("Channel", &extCh, 0, 15);
-			Paras[nump++] = new Parameter("Ping", &extPing, 0, 1, selected);
-			Paras[nump++] = new Parameter("From Note", &extNote, 0, 127, midiNamesLong);
-			Paras[nump++] = new Parameter("to", &toextNote, 0, 127, midiNamesLong);
+			Paras[nump++] = new Parameter("Ping", &extPing, 0, 1, selected, 2);
+			Paras[nump++] = new Parameter("From Note", &extNote, 0, 127, midiNamesLong, 128);
+			Paras[nump++] = new Parameter("to", &toextNote, 0, 127, midiNamesLong, 128);
 			Paras[nump++] = new Parameter("Velocity", &velocity, 0, 14);
 		}
 		else
@@ -38,32 +39,35 @@ public:
 			items[i] = Paras[i]->name;
 			//       if(debug==1)Serial.println(items[0] + " " + Paras[i]->name);
 		}
-		if (extt != HIRES)
-			items[nump++] = "Back";
-		numitems = nump;
 
+		numitems = nump;
+		name = items[0];
 		me = type;
 		parent = EXTERNALS;
 		targets = ptargets;
 		aPin = pPin;
+		if (extt == EXT_SWITCH)
+			myButton = new Button(triggerButton);
 		if (extt != HIRES)
 		{
 			calibrate = pcalibrate;
 
 			ping = Ping(aPin);
-			if (aPin > 3)
+			if (aPin != triggerButton)
 			{
 				Analog = new ResponsiveAnalogRead(aPin, true);
+				//				Analog->setActivityThreshold(80);
 				//			ping = Ping(aPin);
 			}
 			else
 			{
-				myButton = new Button(3);
+				//				myButton = new Button(triggerButton);
 				//			if(debug==1)Serial.println(digitalRead(3));
 			}
 			calibrate->items[0] = "Cal." + items[0];
 		}
-		targets->items[0] = items[0] + "->";
+		targets->setName(items[0] + "->");
+//		FDBG("target " + SN(targets->me) + " " + targets->name);
 		rawvalue = 0;
 #endif
 	}
@@ -76,8 +80,32 @@ public:
 		short mapvalue = 0;
 		byte notefrom = extNote;
 		byte noteto = toextNote;
-		//		if(debug==1)Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String((int)extPing) + " Switch " + String((int)myButton));
-		if (myEnc != nullptr)
+		//		Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String((int)extPing) + " Switch " + String((int)myButton));
+		if (Analog)
+		{
+
+			Analog->update();
+			if (isshowing == calibrate->myID)
+			{
+				calibrate->showVal(rawvalue, &emin, &emax, 0, 127);
+			}
+			if (Analog->hasChanged())
+			{
+				rawvalue = Analog->getValue();
+				eventtype = 2;
+				if (rawvalue < emin)
+					emin = rawvalue;
+				if (rawvalue > emax)
+					emax = rawvalue;
+				byte sNote = imap(rawvalue, emin, emax, notefrom, noteto);
+				//					if (aPin == A15)
+				//							if(debug==1)Serial.println(String(myID) + " Probe " + String(extNote) + " Analog " +  String(rawvalue));
+				//					if(debug==1)Serial.println(targets->SynthPara);
+				targets->action(on, eventtype, extCh, sNote, vel[velocity], extCC, __CALLER__, rawvalue, mapvalue);
+				eventtype = 4;
+			}
+		}
+		if (myID == HIRES)
 		{
 			rawvalue = myEnc->read();
 			if (oldraw == rawvalue)
@@ -85,9 +113,10 @@ public:
 				rawdir = 0;
 				return;
 			}
-			int delta=(rawvalue-oldraw);
-//			Serial.println(delta);
-			rawdir = delta >0 ? 1 : delta<0?-1:0;
+			int delta = (rawvalue - oldraw);
+			//			Serial.println(delta);
+			rawdir = delta > 0 ? 1 : delta < 0 ? -1
+											   : 0;
 			if (rawvalue > 9999)
 				rawvalue = 9999;
 			if (rawvalue < 0)
@@ -95,7 +124,7 @@ public:
 			myEnc->write(rawvalue);
 			oldraw = rawvalue;
 			//			Serial.println(rawvalue);
-			targets->action(on, 2, 0, 0, 0, extCC, rawvalue, rawvalue, mapvalue);
+			targets->action(on, 2, 0, 0, 0, extCC, __CALLER__, rawvalue, mapvalue);
 			eventtype = 4;
 		}
 		if (myButton)
@@ -103,20 +132,24 @@ public:
 			bool res = myButton->check();
 			if (myButton->hasChanged)
 			{
+				//				FDBG(SB(res));
 				if (res)
 				{
 					eventtype = 1;
 					rawvalue = 1;
+					playFile(wavenames[s1index], false);
 				}
-				else
+				else //////
 				{
 					eventtype = 0;
 					on = false;
 					rawvalue = 0;
 				}
+				return;
 			}
 		}
 
+#if 0
 		if (Analog)
 		{
 			if (aPin == FSR_PIN)
@@ -129,7 +162,7 @@ public:
 					float fsrR = R_DIV * (VCC / fsrV - 1.0);
 					if (fsrR > 10000)
 						return;
-					if (debug == 1)
+					
 						Serial.println("Resistance: " + String(fsrR) + " ohms");
 					float force;
 					float fsrG = 1.0 / fsrR; // Calculate conductance
@@ -138,7 +171,7 @@ public:
 						force = (fsrG - 0.00075) / 0.00000032639;
 					else
 						force = fsrG / 0.000000642857;
-					if (debug == 1)
+					
 						Serial.println("Force: " + String(force) + " g");
 					rawvalue = force;
 					eventtype = 7;
@@ -173,102 +206,93 @@ public:
 						dc2.amplitude(0);
 				}
 			}
-		}
-		if (extPing != 27)
-		{
-			if (Analog)
+			if (extPing == 27)
 			{
-				Analog->update();
+
+				int _pin = aPin;
+				pinMode(_pin, OUTPUT);
+				digitalWrite(_pin, LOW);
+				delayMicroseconds(2);
+				digitalWrite(_pin, HIGH);
+				delayMicroseconds(5);
+				digitalWrite(_pin, LOW);
+				pinMode(_pin, INPUT);
+				int _duration = pulseIn(_pin, HIGH, 10000);
+				if (_duration != -1)
+					rawvalue = (float)_duration / (29) / 2;
+				else
+					rawvalue = -1;
+				if (rawvalue < 1)
+					return;
 				if (isshowing == calibrate->myID)
 				{
+
 					calibrate->showVal(rawvalue, &emin, &emax, 0, 127);
+					//				if(debug==1)Serial.println("sel? " + String(calibrate->inSel)+ " @ "+String(calibrate->rot_pos));
 				}
-				if (Analog->hasChanged())
+				if (rawvalue > 2 && rawvalue < 50)
 				{
-					rawvalue = Analog->getValue();
-					eventtype = 2;
-					byte sNote = imap(rawvalue, emin, emax, notefrom, noteto);
-					//					if (aPin == A15)
-					//							if(debug==1)Serial.println(String(myID) + " Probe " + String(extNote) + " Analog " +  String(rawvalue));
-					//					if(debug==1)Serial.println(targets->SynthPara);
-					targets->action(on, eventtype, extCh, sNote, vel[velocity], extCC, rawvalue, rawvalue, mapvalue);
-					eventtype = 4;
+					if (rawvalue != pcm && onote != 0)
+					{
+						eventtype = 0;
+						onote = 0;
+					}
+					//					int note = fmap(cm, 0, 50, 1, 127);
+					//					usbMIDI.sendNoteOn(note, 64, _channel, cable);
+					//					onote = note;
+					pcm = rawvalue;
+					eventtype = 6;
 				}
-			}
-		}
-#if 1
-		else
-		{
-
-			int _pin = aPin;
-			pinMode(_pin, OUTPUT);
-			digitalWrite(_pin, LOW);
-			delayMicroseconds(2);
-			digitalWrite(_pin, HIGH);
-			delayMicroseconds(5);
-			digitalWrite(_pin, LOW);
-			pinMode(_pin, INPUT);
-			int _duration = pulseIn(_pin, HIGH, 10000);
-			if (_duration != -1)
-				rawvalue = (float)_duration / (29) / 2;
-			else
-				rawvalue = -1;
-			if (rawvalue < 1)
-				return;
-			if (isshowing == calibrate->myID)
-			{
-
-				calibrate->showVal(rawvalue, &emin, &emax, 0, 127);
-				//				if(debug==1)Serial.println("sel? " + String(calibrate->inSel)+ " @ "+String(calibrate->rot_pos));
-			}
-			if (rawvalue > 2 && rawvalue < 50)
-			{
-				if (rawvalue != pcm && onote != 0)
+				else if (onote > 0)
 				{
+					//					usbMIDI.sendNoteOff(onote, 0, _channel, cable);
 					eventtype = 0;
 					onote = 0;
+					on = false;
 				}
-				//					int note = fmap(cm, 0, 50, 1, 127);
-				//					usbMIDI.sendNoteOn(note, 64, _channel, cable);
-				//					onote = note;
-				pcm = rawvalue;
-				eventtype = 6;
-			}
-			else if (onote > 0)
-			{
-				//					usbMIDI.sendNoteOff(onote, 0, _channel, cable);
-				eventtype = 0;
-				onote = 0;
-				on = false;
 			}
 		}
 #endif
 #if 1
+		static float ov = 0;
+		if (fabs(ov - rawvalue)<10)
+			return;
+		ov = rawvalue;
 		if (targets->SynthPara)
 		{
 			byte pn = targets->SynthPara;
-			Parameter *aPara = MenuPara::SynthMenu->getPara(pn);
-			if (aPara == nullptr)
+			Parameter *SynthPara = MenuPara::SynthMenu->getPara(pn);
+			//			if (SynthPara != nullptr)
+			//				FDBG(SN(SynthPara->source) + " ->" + SN(targets->name));
+			if (SynthPara == nullptr || SynthPara->source != targets->me)
 				return;
-			//			if(debug==1)Serial.println(String(pn) + " " +aPara->name + " " +String(aPara->isFloat?1:0));
-			if (aPara->isFloat)
+			//			SynthPara->source = targets->myID;
+
+			//			Serial.println(String(pn) + " " + aPara->name + " " + String(aPara->isFloat ? 1 : 0)+ " " + SN(eventtype));
+			if (SynthPara->isFloat)
 			{
 				//				if(debug==1)Serial.println(String((int)aPara->fvalue) + " " + items[0]);
 				//				if(debug==1)Serial.println("audio " + String(eventtype) + " " + String(pn) + " " + mPara->Paras[pn]->name);// +" " + ((MenuPara*)Menus[SYNTHSETTINGS])->Paras[targets->SynthPara]->name);
-				float mapvalue = fmap(rawvalue, emin, emax, aPara->fvstart, aPara->fvend);
-				aPara->fvalue = mapvalue;
-				//			if(debug==1)Serial.printf("values %f %d %d %f %f %f\n", rawvalue, emin, emax, aPara->fvstart, aPara->fvend, mapvalue);
-				//			if(debug==1)Serial.println("audio "+ String(mapvalue) + " " + mPara->Paras[pn]->name);
-				//			MenuPara::setSynthVal(targets->SynthPara);
-				targets->action(on, eventtype, extCh, 0, 0, extCC, rawvalue, mapvalue);
+				float mapvalue = fmap(rawvalue, emin, emax, SynthPara->fvstart, SynthPara->fvend);
+				SynthPara->fvalue = mapvalue;
+				//				Serial.printf("values %f %d %d %f %f %f\n", rawvalue, emin, emax, SynthPara->fvstart, SynthPara->fvend, mapvalue);
+				//				Serial.println("audio " + String(mapvalue) + " " + SynthPara->name);
+				//				MenuPara::setSynthVal(targets->SynthPara);
+				//				targets->action(on, eventtype, extCh, 0, 0, extCC, __CALLER__, mapvalue);
+				if (!targets->SYNTH)
+					SynthPara->setSynthVal(__CALLER__);
+				else
+				{
+					targets->action(true, 2, extCh, extNote, fmap(rawvalue, emin, emax, 0, 128), SynthPara->paranum, 0, rawvalue);
+				}
 				return;
 			}
-		}
+			}
 #endif
 		if (eventtype != 4)
 		{
 			//			if(debug==1)Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String(extNote) + " Switch " + String(rawvalue));
-			targets->action(on, eventtype, extCh, extNote, vel[velocity], extCC, rawvalue, mapvalue);
+			targets->action(on, eventtype, extCh, extNote, vel[velocity], extCC, __CALLER__, mapvalue);
 		}
 	}
 	void save(File frec)
@@ -322,7 +346,6 @@ public:
 	signed char toextNote = 0;
 	signed char extPing = 0;
 	signed char aPin = 0;
-	MenuTargetSet *targets = 0;
 	MenuCalibrateSet *calibrate = 0;
 	Button *myButton = 0;
 	Ping ping = 0;

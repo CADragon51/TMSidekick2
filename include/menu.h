@@ -4,15 +4,32 @@
 #include <ResponsiveAnalogRead.h>
 #include "Button.h"
 #include <Ping.h>
+#include <NativeEthernet.h>
 #include <chord.h>
+#include "Webgui.h"
+extern Webgui webgui; // initialize an instance of the class
+extern EthernetClient client;
+extern IPAddress server;
+extern int scidtoix(int sc);
 
-void saveTMS(void);
+void onOptionSelect(int option, int id);
+extern Webgui webgui; // initialize an instance of the class
+extern void onSlider(float value, int id);
+extern void onSwitches(bool *value, int id);
+
+extern void onButtonPress(int button, int id);
+
+extern void midiSilence(void);
+extern void onButtonRelease(int button, int id);
+
+extern void saveTMS(void);
+extern short menuId[20];
 int nextm = -1;
 class Targets;
 extern Adafruit_SSD1306 display;
 extern float fmap(float, float, float, float, float);
 const String paranamemidi[] = {"USB MIDI IN", "HOST MIDI IN", "MIDI IN", "USB MIDI OUT", "MIDI OUT 1", "MIDI OUT 2"};
-const String paraname[] = {"Pedal 1", "Pedal 2", "FSR", "Switch", "Joystick X", "Joystick Y", "Pot1", "Pot2", "HiRes Encoder"};
+const String paraname[] = {"Joystick X", "Joystick Y", "Pot1", "Pot2", "Pedal 1", "Pedal 2", "FSR", "Hi-Res", "Switch"};
 void playFile(String, bool);
 typedef void (*CALLBACK)(signed char type);
 extern String readline(File);
@@ -37,10 +54,10 @@ int dpos;
 int r;
 byte fnote = 0;
 byte ln[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-short mln[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-short mlninv[12][5];
-// short actinv[12];
-byte mlnchord[12][6] = {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
+short mln[12] = {72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72};
+// short mlninv[12][5];
+//  short actinv[12];
+// byte mlnchord[12][6] = {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
 int bnx = 0;
 int mapnx = 0;
 extern int sfx;
@@ -52,8 +69,8 @@ class Menu
 public:
 	Menu(signed char pmyID, String pname, String pitems = "", signed char pparent = MAIN)
 	{
-		//		if(debug==1)Serial.println("menu " + String(pparent));
-		//		if(debug==1)Serial.println(items[0] + "***" + String(pmyID));
+		//		DBG("menu " + String(pparent));
+		//		DBG(items[0] + "***" + String(pmyID));
 		setup(pname);
 		numitems = 0;
 		if (pitems.length() > 0)
@@ -66,13 +83,13 @@ public:
 		else
 		{
 			items[numitems++] = pname;
-			//			items[numitems++] = "Back";
 		}
 
 		parent = pparent;
 		myID = pmyID;
 		for (int i = 0; i < 50; i++)
 			paraID[i] = -1;
+		isPara = false;
 	}
 	void setup(String pname)
 	{
@@ -80,42 +97,44 @@ public:
 		paraencoder = new RotaryEncoder(PIN_IN1, PIN_IN2, RotaryEncoder::LatchMode::TWO03);
 		items[0] = pname;
 		rot_pos = 1;
-		encoder->setPosition(1);
+		//		encoder->setPosition(1, __CALLER__);
 	}
 	void mainSel(int pos)
 	{
 		int para = rot_pos;
-		if (debug == 1)
+
 		{
-			Serial.print(String(pos) + " para =");
-			Serial.print(String(para) + " MSel =" + String(paraID[para]));
+			FDBG(String(pos) + " para =");
+			FDBG(String(para) + " MSel =" + String(paraID[para]));
 		}
-		//    if(debug==1)Serial.println(paraID[para]);
+		//    DBG(paraID[para]);
 		menuState = paraID[para];
-		//		if(debug==1)Serial.print(" 162 now :");
-		//		if(debug==1)Serial.println(menuState);
+		//		DBG(" 162 now :");
+		//		DBG(menuState);
 
 		if (Menus[menuState])
 		{
-			//        Menus[menuState]->display();
+			Menus[menuState]->backstate = myID;
 		}
 	}
 	bool selMenu(void)
 	{
 		int para = rot_pos;
-		//		if(debug==1)Serial.print("+++++ ");
-		//		if(debug==1)Serial.print(items[0]);
-		//		if(debug==1)Serial.print(" = ");
-		if (debug == 1)
-			Serial.print(items[para] + " ");
-		if (debug == 1)
-			Serial.println(paraID[para]);
+		//		DBG("+++++ ");
+		//		DBG(items[0]);
+		//		DBG(" = ");
+		//
+		{
+			DBG("Sel " + items[para] + " ");
+			DBG(paraID[para]);
+			DBG("maxrepl " + String(maxrepl));
+		}
 		inSel = !inSel;
-		if (items[para] == "Back" || rot_pos == 0)
+		if (rot_pos == 0)
 		{
 			menuState = parent;
 			para_change = false;
-			//			if(debug==1)Serial.println("par " + String(parent));
+			//			DBG("par " + String(parent));
 			saveTMS();
 
 			return true;
@@ -124,63 +143,49 @@ public:
 		if (paraID[para] > -1)
 		{
 			menuState = paraID[para];
-			if (debug == 1)
-				Serial.print(" 189 now :" + String(para));
-			//			if(debug==1)Serial.println(menuState);
+			//			DBG(paraID[para]);
+
+			DBG(" 189 now :" + String(para));
+			//			DBG(menuState);
 
 			para_change = false;
-			//			if(debug==1)Serial.println("par " + String(parent));
-			saveTMS();
-
-			return true;
-		}
-		else
-		{
-			if (items[para] == "Samples 1")
-			{
-				menuState = FSR;
-
-				para_change = false;
-				saveTMS();
-
-				return true;
-			}
-			if (items[para] == "Find")
+			//			DBG("par " + String(parent));
+			if (items[para] == "Find Scale")
 			{
 				menuState = NEWSCALE;
-
 				para_change = false;
-				saveTMS();
-
+				maxrepl = 0;
+				actkeyidx = 0;
 				return true;
 			}
-			if (items[para] == "New Mapping")
+			if (items[para] == "Edit Map")
 			{
+				//				DBG("maxrepl " + String(maxrepl));
 				menuState = NEWMAP;
-				mapnx = 0;
 				para_change = false;
-				saveTMS();
-
+				//				saveTMS();
 				return true;
 			}
-			if (items[para] == "Samples 2")
+			if (items[para] == "Show Map")
 			{
-				menuState = SWITCH;
+				menuState = SHOWMAP;
+				actkeyidx = 0;
 				para_change = false;
-				saveTMS();
-
 				return true;
 			}
 			if (items[para] == "Target")
 			{
 				menuState = paraID[para];
-				//				if(debug==1)Serial.print("217 now :");
-				//				if(debug==1)Serial.println(menuState);
+				//				DBG("217 now :");
+				//				DBG(menuState);
 				para_change = false;
-				saveTMS();
-
-				return true;
 			}
+			saveTMS();
+			return true;
+		}
+		else
+		{
+			DBG(paraID[para]);
 		}
 		return false;
 	}
@@ -197,182 +202,171 @@ public:
 			n++;
 		}
 		items[1] = ins.substring(0, p[0]);
-		//		if(debug==1)Serial.println(items[1]);
+		//		DBG(items[1]);
 		for (int i = 1; i < n; i++)
 		{
 			String it = ins.substring(p[i - 1] + 1, p[i]);
-			//			if(debug==1)Serial.println(it);
+			//			DBG(it);
 			//        items[i + 1] = ins.substring(p[i - 1] + 1, p[i]);
 			items[i + 1] = it;
 		}
 		return n + 1;
 	}
+	void mapit(String from)
+	{
+		mapit(lastMap, from);
+	}
 	void mapit(void)
 	{
-		mapit(lastMap);
-	}
-	void scaleit(void)
-	{
-		scaleit(lastScale);
-	}
-	static short maparr[100];
-	static byte mnx;
-	void mapit(int para)
-	{
-
-		if (para < numitems - 1)
+		maxrepl = 11;
+		actkeyidx = 0;
+		for (int i = 0; i < maxrepl; i++)
 		{
-			//			if(debug==1)Serial.println(items[para]);
-			File myFile = SD.open(filenames[para].c_str());
-			if (myFile)
+			keychord[i] = chordIds[i] * 100;
+			replchord[i] = chordIds[i];
+			transpose[0] = 0;
+		}
+		lastMap = 3;
+		DBG("mapped " + SN(numitems));
+	}
+	void mapit(int para, String from)
+	{
+		FDBG("mapit " + String(para) + " ::::: " + items[para] + " " + SN(numitems) + " " + from);
+		refresh = true;
+		if (para == 3)
+		{
+			mapit();
+			return;
+		}
+		if (para < numitems)
+		{
+			loadMap(filenames[para]);
+			displayMenu(__CALLER__);
+		}
+	}
+	void scaleit(int _scid)
+	{
+		static int oldscid = 0;
+		static byte sb = 99;
+		if (_scid == oldscid && scalebase == sb)
+			return;
+		oldscid = _scid;
+		sb = scalebase;
+		_scid = _scid << 1;
+		nx = 1;
+		//		DBG("scaleit");
+		refresh = true;
+		inscale[sb]=sb;
+//		FDBG("In Scale: " + midiNamesFlat[(0) % 12] + " " + midiNamesFlat[(sb) % 12]);
+		for (int i = 1; i < 12; i++)
+		{
+			int test = 1 << i;
+			inscale[(i + sb) % 12] = -1;
+			//			anx[i] = nx - 1;
+			if ((_scid & test) > 0)
 			{
-				if (debug == 1)
-					Serial.println(filenames[para]);
-				for (int i = 0; i < 2048; i++)
-				{
-					replchord[i] = i;
-					transpose[i] = 0;
-				}
-				String fn = readline(myFile);
-				lastMap = para;
-				// read from the file until there's nothing else in it:
-				mnx = 0;
-				while (myFile.available())
-				{
-					fn = readline(myFile) + "=";
-					String res[2];
-					signed char n = SplitS(fn, '=', (String *)res, 2);
-					if (n == 2)
-					{
-						int ix = res[1].indexOf("+");
-						signed char n2 = 0;
-						if (ix > -1)
-							n2 = res[1].substring(ix).toInt();
-						replchord[res[0].toInt()] = res[1].toInt();
-						transpose[res[0].toInt()] = n2;
-						maparr[mnx] = res[0].toInt();
-						//					if (debug == 1)
-						//						if (debug == 1)
-						Serial.println(String(mnx) + " " + String(maparr[mnx]) + "=" + res[1] + " + " + String(n2));
-						mnx++;
-					}
-					else
-					{
-						if (debug == 1)
-						{
+				ln[nx++] = (i)%12;
+				inscale[(i+sb ) % 12] = (i+sb) % 12;
+				//				anx[i] = nx - 1;
+			}
+		}
+//		for (int i = 0; i < 12; i++)
+//			FDBG("In Scale: " + midiNamesFlat[i] + " " + SN(inscale[i]));
 
-							Serial.print(n);
-							Serial.print(" found:");
-							Serial.println(fn);
+			for (int i = 0; i < 12; i++)
+			{
+				int delta = 99;
+				int di = 0;
+				if(inscale[i]!=-1)
+					continue;
+				for (int j = 0; j < 12; j++)
+				{
+					if (inscale[j] == j)
+					{
+						int d = abs(i - j);
+						if (d < delta)
+						{
+							di = j;
+							delta = d;
 						}
 					}
 				}
-				// close the file:
-				myFile.close();
-				displayMenu();
+				inscale[i] = (di) % 12;
+//				FDBG("Scale, " + midiNamesFlat[(i) % 12] + "," + SN(delta) + "," + midiNamesFlat[inscale[i]]);
 			}
-		}
-	}
-	void scaleit(int para)
-	{
-		if (para < numitems - 1)
+		_scid = oldscid;
+		DBG("g_scid ");
+		DBG(_scid);
+		g_scid = _scid;
+		if (_scid == 2047)
 		{
-			//			if (debug == 1)
-			//			Serial.println(items[para] + "->" + scFP[para]);
-			lastScale = para;
-			nx = 1;
-			scid = scFP[lastScale] << 1;
-			//			scid = scid << 1;
-			for (int i = 0; i < 12; i++)
+			Menus[MAPPINGS]->mapit();
+			return;
+		}
+		#if 0
+		int o = 0;
+		for (int i = 0, j = 0; i < 128 && o < 11 && nx < 10; i++)
+		{
+			byte n = i % 12;
+			if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
+				basescale[i] = basescale[i - 1];
+			else
 			{
-				int test = 1 << i;
-				if ((scid & test) > 0)
-					ln[nx++] = i;
-				//				Serial.println(String(i) + " " + String(test) + " " + String(scid & test) + " " + String(nx));
-			}
-			scid = scid >> 1;
+				basescale[i] = ln[j] + scalebase + o * 12;
 
-			int o = 0;
-			for (int i = 0, j = 0; i < 128 && o < 11; i++)
-			{
-				byte n = i % 12;
-				if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
-					basescale[i] = -1;
-				else
+				DBG(String(j) + ": " + String(i) + " ->" + String(basescale[i]));
+
+				DBG(" " + midiNamesFlat[n] + String(i / 12) + " ->" + midiNamesFlat[ln[j]] + " " + String(o));
+				j++;
+				if (j >= nx)
 				{
-					basescale[i] = ln[j] + o * 12;
-					if (debug == 1)
-						Serial.print(String(j) + ": " + String(i) + " ->" + String(ln[j]) + " " + String(o));
-					if (debug == 1)
-						Serial.println(" " + midiNamesFlat[n] + String(i / 12) + " ->" + midiNamesFlat[ln[j]] + " " + String(o));
-					j++;
-					if (j >= nx)
-					{
-						j = 0;
-						o++;
-					}
+					j = 0;
+					o++;
 				}
 			}
-			displayMenu();
 		}
+		//		displayMenu(__CALLER__);
+		#endif
 	}
 	void selNewMenu(void)
 	{
-		int rp = rot_pos;
-		//		rot_pos--;
-		if (debug == 1)
-			Serial.println("myID " + String(myID) + " " + String(rot_pos));
+		//
+		DBG("myID " + String(myID) + " " + String(rot_pos));
 		switch (myID)
 		{
-		case FSR:
-			if (s1index != rot_pos)
-			{
-				s1index = rot_pos;
-				saveTMS();
-				displayMenu();
-			}
-			else
-			{
-				playFile(wavenames[s1index], false);
-			}
-			break;
-		case SWITCH:
-			if (s2index != rot_pos)
-			{
-				s2index = rot_pos;
-				saveTMS();
-				displayMenu();
-			}
-			else
-			{
-				playFile(wavenames[s2index], false);
-			}
-			break;
+
 		case PRESETS:
 			preindex = rot_pos;
 			//           saveTMS();
-			displayMenu();
+			displayMenu(__CALLER__);
 			break;
 		case MAPPINGS:
-			if (rot_pos > 1)
+			if (rot_pos > 2)
 			{
+				//				DBG("myID " + String(lastMap) + " " + String(rot_pos));
+
 				if (lastMap != rot_pos)
-					mapit(rot_pos);
+				{
+					mapit(rot_pos, __CALLER__);
+				}
 				menuState = SHOWMAP;
+				//				DBG("mapit " + String(menuState));
 				Menus[menuState]->items[0] = items[rot_pos];
-				Menus[menuState]->show(true, 369);
+				Menus[menuState]->show(true, __CALLER__);
 			}
 			else
 				selMenu();
 			break;
 		case SCALES:
-			if (rot_pos > 1)
+			if (rot_pos > 2)
 			{
-				if (lastScale != rot_pos)
-					scaleit(rot_pos);
+				//				if (lastScale != rot_pos)
+				//					scaleit(rot_pos);
 				menuState = SHOWSCALE;
+				g_scid = scFP[rot_pos];
 				Menus[menuState]->items[0] = items[rot_pos];
-				Menus[menuState]->show(true, 369);
+				Menus[menuState]->show(true, __CALLER__);
+				refresh = true;
 			}
 			else
 				selMenu();
@@ -394,205 +388,93 @@ public:
 				{
 					para_change = true;
 					psel = 1;
-					rot_pos = 0;
+					last_Sel = rot_pos;
+					//					DBG(String(replchord[actkeyidx]) + " ixchord " + String(chordIds[0]) + " actkeyidx " + String(actkeyidx));
+					Chord *cc = chords[replchord[actkeyidx]];
+					//					DBG("cc " + cc->name);
+					rot_pos = cc->_cindex + 1;
+					//					DBG("ix " + String(rot_pos) + " " + String(replchord[actkeyidx]) + " ixchord " +
+					//								   String(chordIds[cc->_cindex - 1]) + " " + String(chordIds[cc->_cindex]) + " " + String(chordIds[cc->_cindex + 1]) + " " + String(actkeyidx));
+					//					DBG("ix " + String(cc->_cindex) + " " + String(replchord[actkeyidx]) + " ixchord " +
+					//								   String(chordName[chordIds[cc->_cindex - 1]]) + " " + String(chordName[chordIds[cc->_cindex]]) + " " + String(chordName[chordIds[cc->_cindex + 1]]) + " " + String(actkeyidx));
 				}
 				else if (psel == 1)
 				{
 					para_change = true;
 					psel = 2;
-					last_Sel = rot_pos;
-					for (int ix = 0; ix < 51; ix++)
-					{
-						if (replchord[inx] == chordIds[ix])
-						{
-							rot_pos = ix;
-							break;
-						}
-					}
+					rot_pos = transpose[actkeyidx] + 1;
+					//					DBG("myID " + String(myID) + " " + String(para_change ? "selected" : "not selected") + " psel " + String(psel) + " actkeyidx " + String(actkeyidx));
 				}
 				else if (psel == 2)
 				{
-					para_change = true;
-					psel = 3;
-					rot_pos = transpose[inx];
-				}
-				else if (psel == 3)
-				{
-					psel = 0;
 					para_change = false;
-					rot_pos = last_Sel;
+					psel = 0;
+					rot_pos = actkeyidx + 1;
 				}
-				encoder->setPosition(rot_pos);
-				Serial.println("myID " + String(myID) + " " + String(para_change ? "selected" : "not selected") + " psel " + String(psel));
+
+				//				encoder->setPosition(rot_pos, _CALLER_);
+				//				DBG("myID " + String(rot_pos) + " " + String(para_change ? "selected" : "not selected") + " psel " + String(psel) + " actkeyidx " + String(actkeyidx));
 			}
 			break;
 		default:
 			selMenu();
 		}
-		rot_pos = rp;
+		//		rot_pos = rp;
 	}
 	virtual void restore(File frec) {}
 	virtual void onButton(bool cancel)
 	{
 		para_change = false;
-		//		if (debug == 1)
-		Serial.println("ID " + String(myID) + " items " + items[rot_pos] + "@" + String(rot_pos) + " " + items[0]);
+		//
+		DBG("ID " + String(myID) + " items " + items[rot_pos] + "@" + String(rot_pos) + " " + items[0]);
 		dpos = 0;
 		r = 1;
 		if (myID == NEWSCALE || myID == SHOWSCALE || myID == SHOWMAP)
 		{
-			Serial.println("back -> parent " + String(parent));
+			//			DBG("back -> parent " + String(parent));
 			menuState = parent;
-			Menus[menuState]->show(true, 391);
+			Menus[menuState]->show(true, __CALLER__);
 			if (myID == NEWSCALE)
 			{
 				bnx = 0;
 				ln[0] = 0;
-#if 0
-				for (int i = 0; i < 12 && invert[scid] != nullptr; i++)
-				{
-					Serial.println(String(invert[scid][i] / 10) + " " + String(invert[scid][i] % 10));
-					invID[invert[scid][i] / 10] = invert[scid][i] % 10;
-				}
-#endif
 			}
 			return;
 		}
-		if (myID == PRESETS && items[rot_pos] != "Back")
+		if (myID == PRESETS)
 		{
-			Serial.println("Open " + items[rot_pos] + ".PRS");
+			DBG("Open " + items[rot_pos] + ".PRS");
 			if (SD.exists(presetnames[rot_pos].c_str()))
 			{
 				File frec = SD.open(presetnames[preindex].c_str(), FILE_READ);
 				if (frec)
 				{
-					if (debug == 1)
-						Serial.println("loading preset data ");
+					//
+					DBG("loading preset data ");
 					AudioNoInterrupts();
 					Menus[SYNTHSETTINGS]->restore(frec);
 					AudioInterrupts();
-					if (debug == 1)
-						Serial.println("data loaded");
+					//
+					DBG("data loaded");
 					frec.close();
 				}
 			}
 		}
-		if (myID == NEWMAP)
-		{
-			if (rot_pos == 0)
-			{
-				mapnx = 0;
-			}
-#if 0
-			else
-			{
-				String out = "";
-				for (int i = 0; i < mapnx; i++)
-				{
-					int sn = ln[i] - ln[0];
-					out = out + String(sn % 12) + " ";
-				}
-				Serial.print(String(bnx) + " scale :" + out);
-				Serial.println("\nEnter scale name:");
-				while (Serial.available() == 0)
-				{
-					if (Buttons[6]->check(true))
-						return;
-				}
-				String comment = Serial.readString();
-				comment = comment.substring(0, comment.length() - 1);
-				String fn = "SCALE" + String(sfx) + ".scl";
-				//
 
-				Serial.println("Saving in " + fn);
-				Serial.println("comment <" + comment + "> " + String(comment.length()));
-				Serial.println("scale <" + out + ">");
-				if (comment.length() > 2)
-				{
-					File frec = SD.open(fn.c_str(), FILE_WRITE);
-					frec.println(comment);
-					frec.println(out);
-					frec.close();
-					scfilenames[sfx++] = fn;
-					byte r = Menus[SCALES]->insertItem(comment, true);
-					lastScale = r;
-					scaleit(r);
-				}
-				for (int i = 0; i < bnx; i++)
-				{
-					ln[i] = 255;
-				}
-				bnx = 0;
-			}
-#endif
-		}
-		if (myID == NEWSCALE)
-		{
-			if (rot_pos == 0)
-			{
-				for (int i = 0; i < bnx; i++)
-				{
-					ln[i] = 255;
-				}
-				bnx = 0;
-			}
-#if 0
-			else
-			{
-				String out = "";
-				for (int i = 0; i < bnx; i++)
-				{
-					int sn = ln[i] - ln[0];
-					out = out + String(sn % 12) + " ";
-				}
-				Serial.print(String(bnx) + " scale :" + out);
-				Serial.println("\nEnter scale name:");
-				while (Serial.available() == 0)
-				{
-					if (Buttons[6]->check(true))
-						return;
-				}
-				String comment = Serial.readString();
-				comment = comment.substring(0, comment.length() - 1);
-				String fn = "SCALE" + String(sfx) + ".scl";
-				//
-
-				Serial.println("Saving in " + fn);
-				Serial.println("comment <" + comment + "> " + String(comment.length()));
-				Serial.println("scale <" + out + ">");
-				if (comment.length() > 2)
-				{
-					File frec = SD.open(fn.c_str(), FILE_WRITE);
-					frec.println(comment);
-					frec.println(out);
-					frec.close();
-					scfilenames[sfx++] = fn;
-					byte r = Menus[SCALES]->insertItem(comment, true);
-					lastScale = r;
-					scaleit(r);
-				}
-				for (int i = 0; i < bnx; i++)
-				{
-					ln[i] = 255;
-				}
-				bnx = 0;
-			}
-#endif
-		}
-
-		if (items[rot_pos] == "Back" || rot_pos == 0)
+		if (rot_pos == 0)
 		{
 			//       para_change = false;
-			//			if (debug == 1)
-			Serial.println("back -> parent " + String(parent));
-			//       if(debug==1)Serial.println(mstate[ parent]);
-			//			if(debug==1)Serial.println("Back");
-			//			if(debug==1)Serial.println(parent);
+			//
+			//			DBG("back -> parent " + String(parent));
+			//       DBG(mstate[ parent]);
+			//			DBG("Back to");
+			//			DBG(parent);
 			//			setoled();
-			setContrast();
+			// setContrast();
 			menuState = parent;
-			//		if(debug==1)Serial.print("318 now :");
-			//			if(debug==1)Serial.println(menuState);
+			rot_pos = Menus[parent]->rot_pos;
+			//		DBG("318 now :");
+			//			DBG(menuState);
 			if (Menus[SETTINGS]->hiRes > 0)
 			{
 
@@ -604,71 +486,64 @@ public:
 			mainSel(1);
 		else
 			selNewMenu();
-		//		if(debug==1)Serial.print("326 now :");
-		//		if(debug==1)Serial.println(menuState);
+		//		DBG("326 now :");
+		//		DBG(menuState);
 		if (menuState > 90)
 			menuState = 0;
 		//		setoled();
-		setContrast();
-		displayMenu();
-		//     if(debug==1)Serial.println(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
+		//		setContrast();
+		displayMenu(__CALLER__);
+		//     DBG(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
 	}
 	void setmark(int ml, int i)
 	{
-		if ((myID == SCALES && lastScale == ml) ||
+		if ((myID == SCALES && scidtoix( g_scid )+3== ml) ||
 			(myID == MAPPINGS && lastMap == ml) ||
-			(myID == FSR && s1index == ml) ||
-			(myID == SWITCH && s2index == ml) ||
 			(myID == PRESETS && preindex == ml))
 		{
-			oled.setCursor(0, i);
-			oled.print("*");
+			display.setCursor(0, i * 8);
+			display.write(3);
+			//			print("*", false, __CALLER__);
 		}
 
-	} //     if(debug==1)Serial.println(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
-
-	virtual void displayMenu(void)
+	} //     DBG(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
+	bool printmenu = false;
+	virtual void displayMenu(String line)
 	{
-		//      if(debug==1)Serial.println(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
-		if (myID == VERSION)
-		{
-			display.clearDisplay();
-			display.drawBitmap(0, 0, tmslogo, 128, 64, 1);
-			display.display();
-			delay(2000); // Pause for 2 seconds
-		}
+		//      DBG(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
+		//		if (isshowing == 2)
+		//			return;
 
-		oled.clear();
+		display.clearDisplay();
 		int ml = line1;
-		oled.setInvertMode(rot_pos == 0);
-		//          oled.setunderlineMode(true);
-		oled.setCursor(0, 0);
+		display.setCursor(0, 0);
+		setInvertMode(rot_pos == 0);
 		if (myID != MAIN)
-			oled.write(17);
-		oled.print("                   ");
-		oled.setCursor(8 + (16 - items[0].length()) * 4, 0);
-		oled.print(items[0]);
+			display.write(17);
+		clearToEOL();
+		display.setCursor(8 + (16 - items[0].length()) * 4, 0);
+		display.print(items[0]);
+
 		for (int i = 1; i < 8 && ml < numitems; i++, ml++)
 		{
-			oled.setInvertMode(ml == rot_pos);
+			//			setInvertMode(ml == rot_pos);
 			setmark(ml, i);
-			if (items[ml] == "Back")
+			display.setCursor(8, i * 8);
+			//			DBG("setcursor " + String(8 ) + "," + String(i));
+			setInvertMode(ml == rot_pos);
+			display.print(items[ml]);
+			if (myID == EXTERNALS)
 			{
-				oled.setCursor(0, i);
-				oled.write(17);
-			}
-			oled.setCursor(8, i);
-			oled.print(items[ml]);
-			if (myID == EXTERNALS && items[ml] != "Back")
-			{
-				oled.setCursor(100, i);
-				oled.printf("%4d", (int)Menus[EXTSETTINGS + ml - 1]->rawvalue);
+				display.setCursor(100, i * 8);
+				setInvertMode(ml == rot_pos);
+				display.printf("%4d", (int)Menus[EXTSETTINGS + ml - 1]->rawvalue);
 			}
 			//			if (ml == rot_pos)
-			//				if(debug==1)Serial.println(String(i) + " ml " + String(ml) + " numitems " + String(numitems) + " " + items[ml]);
+			//				DBG(String(i) + " ml " + String(ml) + " numitems " + String(numitems) + " " + items[ml]);
 		}
 		isshowing = myID;
-		//		if(debug==1)Serial.println("showing " + items[ml-1]);
+		display.display();
+		//		DBG("showing " + items[ml-1]);
 	}
 	void rotpos(void)
 	{
@@ -691,8 +566,8 @@ public:
 				}
 				else
 					line1++;
-				//          if(debug==1)Serial.print(" pos:");
-				//          if(debug==1)Serial.println(rot_pos);
+				//          DBG(" pos:");
+				//          DBG(rot_pos);
 			}
 			if (rot_pos == line1 - 1 && rot_dir < 0 && rot_pos > 0)
 			{
@@ -703,13 +578,15 @@ public:
 				rot_pos = 0;
 			}
 		}
-		//		if (debug == 1)
-		//			Serial.print("line 1" + String(rot_pos));
+		//
+		//			DBG("line 1" + String(rot_pos));
 	}
 	void showscale(String item, byte *res, byte nx, bool newsc = false, bool refresh = false)
 	{
-		static short oldrot = -1, oldnx = -1, oldscb = -1;
-		if (nx == oldnx && oldrot == rot_pos && oldscb == scalebase && !refresh)
+#if 0
+		static short oldrot = -1, oldnx = -1, oldscb = -1, oldscid = -1;
+
+		if (nx == oldnx && oldrot == rot_pos && oldscb == scalebase && oldscid == g_scid && !refresh)
 		{
 			display.display();
 			return;
@@ -717,6 +594,8 @@ public:
 		oldnx = nx;
 		oldrot = rot_pos;
 		oldscb = scalebase;
+		oldscid = g_scid;
+#endif
 		display.clearDisplay();
 		numitems = nx;
 		display.setCursor(6, 1);
@@ -728,7 +607,7 @@ public:
 
 		display.setCursor(pad * 6, 2);
 		display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
-		print(item, rot_pos == 0);
+//		print(item, rot_pos == 0);
 #if 0
 		if (newsc)
 		{
@@ -748,18 +627,16 @@ public:
 		display.drawFastVLine(0, ypos, 24, 1);
 		display.drawFastVLine(126, ypos, 24, 1);
 		display.drawFastVLine(125, ypos, 24, 1);
-		byte off =25;
+		byte off = 25;
 		static byte yposold[12] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
 		byte oldyp = 255;
-		//		Serial.println(String(res[0]) + " " + String(nx) + " " + String(rot_pos));
+		//		DBG(String(res[0]) + " " + String(nx) + " " + String(rot_pos));
 		int lp = rot_pos > 1 ? rot_pos - 2 : 0;
 		if (nx == 0)
 			lp = 0;
 		display.setCursor(98, 0);
 
-		if (scaleNames[scid] != "")
-		{
-			item = scaleNames[scid] + " " + midiNamesFlat[scalebase];
+			item = scaleNames[g_scid] + " " + midiNamesFlat[scalebase];
 			display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 0);
 			l = item.length();
 			ml = 21;
@@ -768,50 +645,45 @@ public:
 			display.setCursor(pad * 6, 2);
 			//		display.writeFastHLine(0, 7, 128, 1);
 			display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
-			print(item, rot_pos == 0);
+			print(item, rot_pos == 0, __CALLER__);
 			scend = true;
-		}
-		else
-		{
-			display.setCursor(98, 0);
-			print(String(scid), false);
-		}
+
 		int nl = 0;
 		firstnote = lp;
 		for (int i = lp; i < nx && i < lp + 7; i++)
 		{
-			int n = (res[i]+scalebase-res[0]) % 12;
+			int n = (res[i] + scalebase - res[0]) % 12;
 			int nn = n;
-			if(n<nl)
-				n +=  12;
+			if (n < nl)
+				n += 12;
 			nl = n;
 			int x = (i - lp) * 15 + off;
 			xpos[i] = x;
-			int yn = yposold[nn] + 7 *( n>11?1:0);
+			int yn = yposold[nn] + 7 * (n > 11 ? 1 : 0);
 			if (!n)
 				display.drawFastHLine(x - 2, ypos + 30, 10, 1);
 			bool isflat = false;
 			if (nn == 1 || nn == 3 || nn == 6 || nn == 8 || nn == 10)
 			{
-//				off += 5;
-//				x += 5;
+				//				off += 5;
+				//				x += 5;
 				isflat = true;
-				display.drawBitmap(x-8, ypos + 30 - yn * 3 - 8, flat, 7, 13, 1);
+				display.drawBitmap(x - 8, ypos + 30 - yn * 3 - 8, flat, 7, 13, 1);
 				oldyp = yn;
 			}
 			else
 			{
 				if (oldyp == yn)
 				{
-//					off += 5;
-//					x += 5;
-					display.drawBitmap(x-6, ypos + 30 - yn * 3 - 6, natural, 5, 13, 1);
+					//					off += 5;
+					//					x += 5;
+					display.drawBitmap(x - 6, ypos + 30 - yn * 3 - 6, natural, 5, 13, 1);
 				}
 			}
 			display.fillRoundRect(x, ypos + 30 - yn * 3 - 2, 6, 5, 2, 1);
 			//			if (nn < 10)
-			display.setCursor(x-(isflat?4:0), ypos + 30 + 5);
-			print( midiNamesFlat[nn],false);
+			display.setCursor(x - (isflat ? 4 : 0), ypos + 30 + 5);
+			print(midiNamesFlat[nn], false, __CALLER__);
 			//			else
 			//			{
 			//				display.drawChar(9 + x, ypos + 30 + 5, '1', 1, 0, 1);
@@ -827,205 +699,121 @@ public:
 
 		display.display();
 	}
-	void showmap(String item, short *res, byte mnx, bool newmap = false, bool refresh = false)
+	void showmap(bool setit = false)
 	{
-		static short orp = -5, lastnum = 12;
-		//		static int old_pos = 0;
-		//, oldrep = -1, oldtrans = -1;
-		//		static int xpos[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		display.display();
-		rot_test();
-		if (rot_pos < 0)
-		{
-			rot_pos = 0;
-			encoder->setPosition(rot_pos);
-		}
-		if (rot_pos > lastnum)
-		{
-			rot_pos = lastnum;
-			encoder->setPosition(rot_pos);
-		}
-		if (orp == rot_pos)
-			return;
-		//		int pos = scalechords[scid][scalebase][0];
-		//		if (rot_pos < 1 && !para_change)
-		//			return;
-		//		if (pos == old_pos)
-		//			return;
-		//		old_pos = pos;
-		static int rpos = 0;
-		String basename = "C";
-		//		if (rpos >= 12)
-		//			rpos = 11;
-
-		//		if (para_change)
-		//			rpos = last_Sel - 1;
 		display.clearDisplay();
 		display.setCursor(6, 1);
 		display.write(17);
-		item = scaleNames[scid];
+		numitems = maxrepl + 1;
+		display.drawFastVLine(2, 20, 24, 1);
+		display.drawFastVLine(124, 20, 24, 1);
+		// int mscid = 2047;
+		// int mscalebase = 0;
+		// if (lastMap > 3)
+		// {
+		// 	mscid = filenames[lastMap].substring(1).toInt();
+		// 	mscalebase = mscid % 100;
+		// 	mscid = mscid / 100;
+		// }
+		byte off = 0;
+		short llimits[3] = {0, 1, 1};
+		int ulimits[3] = {maxrepl + 1, 53, 12};
+		if (setit)
+		{
+			rot_pos = actkeyidx + 1;
+			psel = 0;
+		}
+		if (rot_pos < llimits[psel])
+		{
+			rot_pos = ulimits[psel];
+			encoder->setPosition(rot_pos, __CALLER__);
+		}
+		if (rot_pos > ulimits[psel])
+		{
+			rot_pos = llimits[psel];
+			encoder->setPosition(rot_pos, __CALLER__);
+		}
+		String item = scaleNames[g_scid] + " " + midiNamesFlat[scalebase];
+		//		String item = scaleNames[g_scid] + " " + String(maxrepl) + " " + String(actkeyidx);
 		byte l = item.length();
 		byte ml = 21;
 		byte pad = (ml - l) / 2;
-		numitems = lastnum;
-#if 0
-		if (newmap && mnx > rpos && psel > 0)
+
+		if (maxrepl > 0 && psel == 0 && rot_pos > 0 && !setit)
 		{
-			if (psel == 1)
-			{
-				if (rot_pos > mlnchord[rpos][0])
-				{
-					rot_pos = 0;
-					encoder->setPosition(rot_pos);
-				}
-				if (rot_pos < 0)
-				{
-					rot_pos = mlnchord[rpos][0];
-					encoder->setPosition(rot_pos);
-				}
-				res[rpos] = mlninv[rpos][rot_pos];
-				basename = midiNamesFlat[mlnchord[rpos][rot_pos + 1] % 12];
-			}
-			if (psel == 2)
-			{
-				if (rot_pos > 50)
-				{
-					rot_pos = 0;
-					encoder->setPosition(rot_pos);
-				}
-				if (rot_pos < 0)
-				{
-					rot_pos = 50;
-					encoder->setPosition(rot_pos);
-				}
-				replchord[inx] = chordIds[rot_pos];
-			}
-			if (psel == 3)
-			{
-				if (rot_pos > 11)
-				{
-					rot_pos = 0;
-					encoder->setPosition(rot_pos);
-				}
-				if (rot_pos < 0)
-				{
-					rot_pos = 11;
-					encoder->setPosition(rot_pos);
-				}
-				transpose[inx] = rot_pos;
-			}
+			if (rot_pos <= maxrepl)
+				actkeyidx = rot_pos - 1;
 		}
+		if (actkeyidx < maxrepl && maxrepl > 0)
+		{
+			int ki = keychord[actkeyidx];
+
+			Chord *inC = chords[ki / 100];
+			Chord *iC = inC;
+			int nb = ki % 100;
+			if (rot_pos > 0 && rot_pos < 53 && psel == 1)
+			{
+				replchord[actkeyidx] = chordIds[rot_pos - 1];
+			}
+			if (rot_pos > 0 && rot_pos < 13 && psel == 2)
+			{
+				transpose[actkeyidx] = rot_pos - 1;
+			}
+
+			if (inC != nullptr)
+			{
+
+				int je = 2;
+				//			if(newmap)
+				//				je = 1;
+				for (int j = 0; j < je; j++)
+				{
+					//				short ix = replchord[res[m]];
+					if (j > 0)
+					{
+						iC = chords[replchord[actkeyidx]];
+						nb += transpose[actkeyidx];
+					}
+					byte num = iC->num;
+					off += 34;
+					//					DBG(String(actkeyidx) + " / " + String(maxrepl) + " " + String(nb) + " " + String(num));
+
+					for (int i = 0; i < num; i++)
+					{
+						byte n = (iC->note[i] + nb) % 12;
+						//						DBG(String(i) + " / " + String(n) + " " + String(nb) + " " + String(num));
+						if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
+						{
+							off += 5;
+							break;
+						}
+					}
+
+					iC->dodisplay(off, nb, psel > 0 && j == 1);
+#if 1
+					if (mapID)
+					{
+						display.setCursor(off + 8, 12 + 44);
+						print(String(iC->_scid), psel > 0 && j == 1, __CALLER__);
+					}
+					else
+					{
+						String na = midiNamesFlat[(nb) % 12] + iC->name;
+						int oo = na.length() * 2;
+						display.setCursor(off - oo - 15, 12 + 44);
+						if (!j)
+							print(String(actkeyidx + 1), false, __CALLER__);
+						display.setCursor(off - oo, 12 + 44);
+						print(na, psel > 0 && j == 1, __CALLER__);
+					}
 #endif
+				}
+			}
+		}
 		display.setCursor(pad * 6, 2);
-		//		display.writeFastHLine(0, 7, 128, 1);
 		display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
-		print(item, rot_pos == 0);
-		print(String("  "), false);
-		print(String(rot_pos), false);
-		print(String(" "), false);
-		//		print(String(rpos) + " ", false);
-		//		print(String(psel) + " ", false);
-		//		print(String(rot_pos) + " ", false);
-		//		print(String(mlnchord[rpos][0]));
-		display.drawFastVLine(2, 20, 24, 1);
-		display.drawFastVLine(124, 20, 24, 1);
-		byte numshown = 5;
-		byte off = 10;
-		//		static byte ypos[12] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
-		//		byte sp = 0;
-		//		int beg = rot_pos <3 ? 0 : rot_pos-2;
-		//		if (mnx == 1)
-		//			beg = 0;
-		int r = rot_pos;
-		if (r <= rpos || r > rpos + numshown)
-		{
-			if (r <= rpos)
-				rpos--;
-			else
-				rpos++;
-			if (rpos < 0)
-				rpos = 0;
-		}
-		print(String(rpos), false);
-		for (int m = rpos; m < lastnum && m < rpos + numshown; m++)
-		//		for (int m = 0; m < 6; m++)
-		{
-			int key = scalechords[scid][scalebase][m];
-			int chid = (key % 1000000) / 1000;
-			if (chid == 0)
-			{
-				lastnum = m;
-				break;
-			}
-			Chord *nC = chords[chid];
-			byte inv = key % 10;
-			//			if (inv != 0&&m==1)
-			//			{
-			//				Serial.println(String(chid) + " " + String(chords[chid]->note[inv]) + " " + String((key % 1000) / 10));
-			//			}
-			int nb = ((chords[chid]->note[inv]) + (key % 1000) / 10) % 12;
-			//			continue;
-			Chord *iC = chords[nC->inverseID[inv]];
+		print(item, rot_pos == 0, __CALLER__);
 
-			if (replchord[res[m]] != res[m] && 0)
-			{
-				display.setCursor(off + 13, 56);
-				if (transpose[res[m]] > 0)
-				{
-					if (mapID)
-					{
-						display.setCursor(off + 13, 56);
-						print(String(replchord[res[m]]) + "+" + String(transpose[res[m]]), psel == 2 && m == rpos);
-					}
-					else
-						print(midiNamesFlat[transpose[res[m]]] + cname[replchord[res[m]]], psel == 2 && m == rpos);
-				}
-				else
-				{
-					if (mapID)
-						print(String(replchord[res[m]]), psel == 1 && m == rpos);
-					else
-						print("C" + cname[replchord[res[m]]], psel == 1 && m == rpos);
-				}
-			}
-
-			int je = 1;
-			//			if(newmap)
-			//				je = 1;
-			for (int j = 0; j < je; j++)
-			{
-				//				short ix = replchord[res[m]];
-				if (j == 1)
-				{
-					nb = transpose[res[m]];
-				}
-
-				byte num = iC->num;
-				off += 17;
-				for (int i = 0; i < num; i++)
-				{
-					byte n = iC->note[i] + nb;
-					if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
-					{
-						off += 5;
-						break;
-					}
-				}
-				iC->dodisplay(off, nb, m == r - 1);
-			}
-			if (mapID)
-			{
-				display.setCursor(off + 8, 12 + 44 * (m % 2));
-				print(String(chid), para_sel && m == r);
-			}
-			else
-			{
-				String na = midiNamesFlat[nb] + iC->name.substring(0, 4);
-				int oo = na.length() * 2;
-				display.setCursor(off - oo, 12 + 44 * (m % 2));
-				print(na, para_sel && m == r);
-			}
-		}
 		for (int i = 1; i < 6; i++)
 		{
 			display.drawFastHLine(2, 50 - i * 6, 122, 1);
@@ -1033,42 +821,43 @@ public:
 		display.drawBitmap(1, 15, clef, 16, 36, 1);
 		display.display();
 	}
-	virtual void show(bool force, int caller)
+
+	virtual void show(bool force, String caller)
 	{
 		static int oldv[6] = {-1, -1, -1, -1, -1, -1};
 		static int olde[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
 		static int moldv[6] = {-1, -1, -1};
-		//		if(debug==1)Serial.println("424 show");
+		//	if(myID!=0)
+		//				DBG("show "+String(myID));
 		if (!force)
 			rot_test();
 		if (myID == NEWSCALE)
 			showscale("Find", ln, bnx, true);
 		if (myID == NEWMAP)
-			showmap("Show Chords", mln, mapnx, true);
+			showmap();
 
 		if (myID == SHOWSCALE)
 		{
 			rot_test();
+			//			DBG("show " + String(myID));
 			if (force)
 				rot_pos = 0;
 			if (rot_dir == (int)RotaryEncoder::Direction::NOROTATION && menuState == oldmenuState)
 				return;
-#if 0
-			byte nl[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-			scid = 0;
+			int nscid = g_scid << 1;
+			//			DBG(lastScale);
 			nx = 1;
-			scid = scFP[lastScale]<<1;
-			//			scid = scid << 1;
+			//			g_scid = g_scid << 1;
 			for (int i = 0; i < 12; i++)
 			{
 				int test = 1 << i;
-				if ((scid & test) > 0)
-					nl[nx++] = i;
-				//				Serial.println(String(i) + " " + String(test) + " " + String(scid & test) + " " + String(nx));
+				if ((nscid & test) > 0)
+					ln[nx++] = i;
+				//				DBG(String(i) + " " + String(test) + " " + String(nscid & test) + " " + String(nx));
 			}
-			scid = scid >> 1;
-#endif
-			showscale(scaleNames[scFP[lastScale]], ln, nx, true);
+			//			DBG(scaleNames[scFP[lastScale]]);
+			//			printA4(SN(g_scid));
+			showscale(scaleNames[g_scid], ln, nx, true);
 #if 0
 			if (nx > 1)
 			{
@@ -1076,11 +865,11 @@ public:
 				{
 					nl[i] = res[i].toInt();
 					int n = nl[i] % 12;
-					scid |= (1 << n);
+					g_scid |= (1 << n);
 				}
-				scid = scid >> 1;
-				if (scaleNames[scid] != "")
-					items[0] = scaleNames[scid];
+				g_scid = g_scid >> 1;
+				if (scaleNames[g_scid] != "")
+					items[0] = scaleNames[g_scid];
 
 				showscale(items[0], nl, nx, true);
 				//				showscale(594, true);
@@ -1091,10 +880,10 @@ public:
 		if (myID == SHOWMAP)
 		{
 			rot_test();
-			if (rot_dir == (int)RotaryEncoder::Direction::NOROTATION && menuState == oldmenuState)
-				return;
+			//			if (rot_dir == (int)RotaryEncoder::Direction::NOROTATION && menuState == oldmenuState)
+			//				return;
 			//			oldmenuState = menuState;
-			showmap(items[0], maparr, mnx, false);
+			showmap();
 			return;
 		}
 		if (!force)
@@ -1106,20 +895,18 @@ public:
 					int ml = line1;
 					for (int i = 1; i < 8 && ml < numitems; i++, ml++)
 					{
-						if (items[ml] != "Back")
+						int val = Menus[EXTSETTINGS + ml - 1]->rawvalue;
+						//					FDBG(Menus[EXTSETTINGS + ml - 1]->name);
+						if (val != olde[ml - 1])
 						{
-							int val = Menus[EXTSETTINGS + ml - 1]->rawvalue;
-							if (val != olde[ml - 1])
+							display.setCursor(100, i * 8);
+							setInvertMode(ml == rot_pos);
+							display.printf("%4d", val);
+							if (ml == rot_pos && 0)
 							{
-								oled.setInvertMode(ml == rot_pos);
-								oled.setCursor(100, i);
-								oled.printf("%4d", val);
-								if (ml == rot_pos)
-								{
-									Serial.println(val);
-								}
-								olde[ml - 1] = val;
+								DBG(val);
 							}
+							olde[ml - 1] = val;
 						}
 					}
 				}
@@ -1128,54 +915,58 @@ public:
 					int ml = line1;
 					for (int i = 1; i < 8 && ml < numitems; i++, ml++)
 					{
-						if (items[ml] != "Back")
+						if (oldv[ml - 1] != (int)Menus[ZONESETTINGS + ml - 1]->rawvalue)
 						{
-							if (oldv[ml - 1] != (int)Menus[ZONESETTINGS + ml - 1]->rawvalue)
-							{
-								oldv[ml - 1] = (int)Menus[ZONESETTINGS + ml - 1]->rawvalue;
-								oled.setInvertMode(ml == rot_pos);
-								oled.setCursor(64, i);
-								oled.clearToEOL();
-								oled.printf("%4d/%4d", (int)Menus[ZONESETTINGS + ml - 1]->rawvalue, (int)Menus[ZONESETTINGS + ml - 1]->touchSize);
-							}
+							oldv[ml - 1] = (int)Menus[ZONESETTINGS + ml - 1]->rawvalue;
+							//								DBG("Touch " + String(ml) + " " + String(oldv[ml - 1]));
+							display.setCursor(64, i * 8);
+							setInvertMode(ml == rot_pos);
+							clearToEOL();
+							display.printf("%4d/%4d", (int)Menus[ZONESETTINGS + ml - 1]->rawvalue, (int)Menus[ZONESETTINGS + ml - 1]->touchSize);
 						}
 					}
+					display.display();
 				}
 				if (myID == MIDISET)
 				{
 					for (int i = 0; i < 3; i++)
 					{
 						int mm = Menus[MIDISETTINGS + i]->sourceNote;
-						//							Serial.println(String(i)+" "+String(mm));
+						//							DBG(String(i)+" "+String(mm));
 						if (moldv[i] != mm)
 						{
-							oled.setInvertMode(i + 1 == rot_pos);
-							oled.setCursor(96, i + 1);
-							oled.clearToEOL();
-							oled.printf("%4d", mm);
+							display.setCursor(96, 8 * (i + 1));
+							setInvertMode(i + 1 == rot_pos);
+							clearToEOL();
+							display.printf("%4d", mm);
 							moldv[i] = mm;
 						}
 					}
+					display.display();
 					return;
 				}
-
+				nodisplay = true;
 				return;
 			}
-
-			oldmenuState = menuState;
 		}
-		//     else
-		//      if(debug==1)Serial.println("Show it to me");
-		displayMenu();
+		//		DBG("Show it to me");
+
+		oldmenuState = menuState;
+		displayMenu(caller);
+		nodisplay = false;
 	}
 	int hiresval = 0;
 	void rot_test()
 	{
 		encoder->tick();
-		int newPos = encoder->getPosition();
+		int newPos = encoder->getPosition(__CALLER__);
 		rot_dir = (int)encoder->getDirection();
-		//		   if(debug==1)Serial.println(rot_dir);
-		//		    if(debug==1)Serial.println(rot_pos);
+		if (rot_pos < 0)
+		{
+			DBG("get pos");
+			DBG(newPos);
+			rot_pos = newPos;
+		}
 		if (Menus[SETTINGS]->hiRes && !rot_dir)
 		{
 			int val = Menus[HIRES]->rawvalue;
@@ -1183,67 +974,47 @@ public:
 			newPos = map(val, 1, 10000, 0, 24);
 			if (newPos == rot_pos)
 				rot_dir = 0;
-			if (rot_dir && debug == 1)
+			if (rot_dir && 0)
 			{
-				Serial.print("pos:");
-				Serial.print(rot_pos);
-				Serial.print(" new:");
-				Serial.print(newPos);
-				Serial.print(" dir:");
-				Serial.println(rot_dir);
+				DBG("pos:");
+				DBG(rot_pos);
+				DBG(" new:");
+				DBG(newPos);
+				DBG(" dir:");
+				DBG(rot_dir);
 			}
 		}
 		if (rot_pos != newPos && rot_dir)
 		{
 			rot_pos = newPos;
 			rotpos();
-			encoder->setPosition(rot_pos);
-			//			if(debug==1)Serial.print("pos:");
-			//			if(debug==1)Serial.print(rot_pos);
-			//			if(debug==1)Serial.print(" dir:");
-			//			if(debug==1)Serial.println(rot_dir);
+			encoder->setPosition(rot_pos, __CALLER__);
+			//			DBG("pos:");
+			//			DBG(rot_pos);
+			//			DBG(" dir:");
+			//			DBG(rot_dir);
 		}
 	}
-	byte insertItem(String pitem, bool newins = false)
+	byte insertItem(String pitem)
 	{
 		byte ret = numitems;
 		if (numitems < 99)
 		{
-#if 0
-			if(debug==1)Serial.print(numitems);
-			if(debug==1)Serial.print(" ");
-			if(debug==1)Serial.print(items[numitems]);
-#endif
-			if (!newins)
-				items[numitems++] = pitem;
-			else
-			{
-				numitems--;
-				String old = items[numitems];
-				items[numitems++] = pitem;
-				items[numitems++] = old;
-				ret = numitems - 1;
-			}
-#if 0
-			if(debug==1)Serial.print("->");
-			if(debug==1)Serial.print(items[numitems - 1]);
-			if(debug==1)Serial.print(" ");
-			if(debug==1)Serial.println(numitems);
-#endif
+			items[numitems++] = pitem;
 		}
 		return ret;
 	}
 
 	void setState(signed char first, int num)
 	{
-		//     if(debug==1)Serial.println(Menus[parent]->items[0] + "****" + items[0]);
-		//     if(debug==1)Serial.println(parent + "****" + items[0]);
+		//     DBG(Menus[parent]->items[0] + "****" + items[0]);
+		//     DBG(parent + "****" + items[0]);
 		int s = 1;
 		for (int i = s; i < num + s; i++)
 		{
 			paraID[i] = first + i - s;
-			if (debug == 1)
-				Serial.println(String(i) + " " + items[0] + "->" + Menus[paraID[i]]->items[0]);
+
+			DBG(String(i) + " " + items[0] + "->" + Menus[paraID[i]]->items[0]);
 		}
 	}
 	void setParent(signed char pparent)
@@ -1254,18 +1025,62 @@ public:
 	{
 		value = pvalue;
 	}
-	static void setContrast()
+	String setMenu(void)
 	{
-		static u_int8_t con[] = {0, 0x60, 0xA0, 0xFF};
-		oled.ssd1306WriteCmd(SSD1306_SETCONTRAST); // 0x81
-		oled.ssd1306WriteCmd(con[contrast]);
+		//		FDBG(SN(myID) + " " + SN(omyId));
+		//		if (myID == omyId && !force)
+		//			return "";
+		// omyId = myID;
+		String outmen = "";
+		bool link = true;
+		for (int m = 1; m < numitems; m++)
+		{
+			//			FDBG(items[m] + " " + SN(paraID[m])+" "+SN(myID)+" "+SN(SYNTHSETTINGS));
+
+			if (paraID[m] == -1)
+			{
+				outmen = outmen + "<div><span>" + items[m] + "</span></div>";
+				link = false;
+			}
+		}
+		if (link || myID == MAIN)
+			setLinkMenu();
+		return outmen;
 	}
+	void setLinkMenu(void)
+	{
+		//		static int omyId = -1;
+		//		FDBG(SN(myID) + " " + SN(omyId));
+		//		if (myID == omyId && !force)
+		//			return "";
+		//		omyId = myID;
+		for (int i = 0; i < 20; i++)
+		{
+			if (menuId[i] > 0)
+				webgui.remove(i);
+			menuId[i] = -1;
+		}
+		for (int m = 1, k = 1; m < numitems; m++)
+		{
+			if (paraID[m] > -1)
+			{
+				if (myID == TOUCH)
+				{
+					menuId[m] = webgui.addButtons(items[m], &onButtonRelease, 665 + (k++) * 60, 365, "f", "hide");
+				}
+//				else
+//					menuId[m] = webgui.addButtons(items[m], &onButtonRelease, 200, 110 + (k++) * 25, "f", "hide");
+			}
+		}
+	}
+	virtual void createControl(void) {}
+	virtual void checkcontrol(int type, int id, int select = 0, float value = 0,bool swval=false) {}
 
 	char *value;
-	RotaryEncoder *encoder;
-	RotaryEncoder *paraencoder;
-	Encoder *myEnc = nullptr;
-
+	static RotaryEncoder *encoder;
+	static RotaryEncoder *paraencoder;
+	static Encoder *myEnc;
+	signed char basescale[128];
 	int pvalue = 0;
 	int oldvalue = -1;
 	int rot_pos = 0;
@@ -1273,11 +1088,11 @@ public:
 	int rot_dir = 0;
 	int pararot_dir = 0;
 	int last_Sel = -1;
+	int backstate = 0;
 	int nump = 0;
 	bool para_change = false;
 	bool para_sel = false;
 	int psel = 0;
-	int inx = 0;
 	String items[100];
 	int numitems = 0;
 	int line1 = 1;
@@ -1286,13 +1101,13 @@ public:
 	static signed char triggerCC;
 	static signed char hiRes;
 	static signed char isRat;
-	static signed char byPass;
+	static signed char procMode;
 	static signed char sendAfter;
 	static signed char strum;
 	static signed char noPanic;
 	static signed char useBPM;
 	static signed char ratdiv;
-	static float BPM;
+	static byte BPM;
 	signed char sourceNote = 0;
 	short paraID[50];
 	short parent;
@@ -1305,308 +1120,10 @@ public:
 	static short isshowing;
 	short emin = 1023;
 	short emax = 0;
+	bool isPara = false;
 	ResponsiveAnalogRead *Analog = 0;
 	int touchSize = 0;
 };
 
-class MenuPara : public Menu
-{
-public:
-	MenuPara(signed char myID, String pname, signed char parent) : Menu(myID, pname, "", parent)
-	{
-		//      if(debug==1)Serial.println("menuPara " + String(parent));
-
-		nump = 1;
-		for (int p = 0; p < 100; p++)
-			Paras[p] = 0;
-	}
-
-	void displayMenu(void) override
-	{
-		//		if(debug==1)Serial.println("Menu display");
-		Menu::displayMenu();
-
-		//		nump = numitems - 1;
-		int ml = line1;
-		//		if(debug==1)Serial.println(String(ml) + " / " + String(numitems));
-
-		for (int i = 1; i < 8 && ml < numitems - 1; i++, ml++)
-		{
-			//				if(debug==1)Serial.println(i);
-			if (Paras[ml] && Paras[ml]->name != "Back")
-			{
-				String oval = Paras[ml]->format();
-				oled.setInvertMode(ml == rot_pos);
-				oled.setCursor(124 - 6 * oval.length(), i);
-				oled.clearToEOL();
-				oled.print(oval);
-				//					if(debug==1)Serial.println(Paras[ml]->name + " " + oval);
-				//					if(debug==1)Serial.println(i);
-			}
-		}
-	}
-	void show(bool force, int caller)
-	{
-		nump = numitems - 1;
-
-		static char oldval = -1;
-		//		static float foldval = -1;
-		static float foldval = 0;
-		if (para_sel && actPara)
-		{
-
-			if (!actPara->isFloat)
-			{
-				pararot_test();
-				pvalue = pararot_pos;
-				if (oldval == pvalue)
-					return;
-
-				oldval = pvalue;
-				//			if(debug==1)Serial.println(actPara->name + "=>" + pvalue + " from " + String(caller));
-				if (actPara->value)
-				{
-					*actPara->value = pararot_pos;
-					//					if (debug == 1)						Serial.println(*actPara->value);
-				}
-				if (actPara->name == "Contrast")
-				{
-					contrast = pvalue;
-					setContrast();
-				}
-				printA4(String(pvalue));
-			}
-			else
-			{
-				float val = 0;
-				if (Menus[SETTINGS]->hiRes > 0)
-				{
-					float tv = *actPara->tvalue;
-					int setv = (int)fmap(tv, actPara->fvstart, actPara->fvend, 0, 10000);
-					//					Serial.println("set enc "+String(tv)+"->"+String(setv));
-					Menus[HIRES]->myEnc->write(setv);
-					val = Menus[HIRES]->rawvalue;
-					val = fmap(val, 0, 10000, actPara->fvstart, actPara->fvend);
-				}
-				else
-				{
-					val = Menus[ZONESETTINGS]->rawvalue;
-					val = fmap(val, 0, 1792, actPara->fvstart, actPara->fvend);
-				}
-				if (val == foldval)
-					return;
-				//				actPara->fvalue = fmap(val, 0, 1792, actPara->fvstart, actPara->fvend);
-				*actPara->tvalue = val;
-				actPara->fvalue = val;
-				foldval = val;
-				printA4(String(val));
-			}
-
-			int i = rot_pos - line1 + 1;
-			oled.setInvertMode(false);
-			oled.setCursor(8, i);
-			oled.print(items[rot_pos]);
-			String oval = actPara->format();
-			oled.setCursor(46, i);
-			oled.clearToEOL();
-			oled.setCursor(124 - 6 * oval.length(), i);
-			oled.setInvertMode(true);
-			oled.print(oval);
-			//      if(debug==1)Serial.println(actPara->name + "=>" + oval + " from " + String(124 - 6 * oval.length()));
-			return;
-		}
-		//		if(debug==1)Serial.println("651 show");
-		Menu::show(force, 653);
-	}
-
-	void
-	onButton(bool cancel) override
-	{
-		if (debug == 1)
-			Serial.println("Para click " + String(rot_pos) + " " + String(para_sel ? "sel" : "unsel"));
-		if (myID == NEWMAP && rot_pos > 0)
-		{
-			para_sel = !para_sel;
-			return;
-		}
-		if (rot_pos - 1 < nump)
-		{
-
-			para_change = true;
-			para_sel = !para_sel;
-			last_Sel = rot_pos;
-
-			if (!Paras[rot_pos])
-			{
-				Menu::onButton(false);
-				return;
-			}
-
-			actPara = Paras[rot_pos];
-			actPnum = rot_pos;
-			if (actPara->value || actPara->isFloat)
-			{
-				if (!actPara->isFloat)
-				{
-					if (!cancel)
-					{
-						Serial.println(actPara->name + " old " + String(oldvalue) + " " + String(ratdiv));
-						pvalue = *actPara->value;
-						if (oldvalue == -1)
-							oldvalue = pvalue;
-						Serial.println(actPara->name + " old " + String(oldvalue) + " " + String(ratdiv));
-					}
-					else
-					{
-						Serial.println(actPara->name + " next old " + String(oldvalue));
-						*actPara->value = oldvalue;
-						para_sel = false;
-						oldvalue = -1;
-					}
-				}
-				else
-				{
-					if (!cancel)
-					{
-						Serial.println(actPara->name + " old " + String(oldfvalue));
-						if (oldfvalue == -1)
-							oldfvalue = *actPara->tvalue;
-						Serial.println(actPara->name + " old " + String(oldfvalue));
-					}
-					else
-					{
-						Serial.println(actPara->name + " next old " + String(oldfvalue));
-						*actPara->tvalue = oldfvalue;
-						printA4(oldfvalue);
-						para_sel = false;
-						oldfvalue = -1;
-					}
-				}
-			}
-			if (para_sel && rot_pos > 0 && actPara->range == 0)
-			{
-				menuState = actPara->parent;
-				//				if(debug==1)Serial.print("670 now :");
-				//				if(debug==1)Serial.println(menuState);
-
-				//				if (Menus[menuState])
-				//					Menus[menuState]->items[0] = items[0] + "->";
-				nextm = menuState;
-				para_change = false;
-				para_sel = false;
-
-				return;
-			}
-			//			if(debug==1)Serial.println(items[rot_pos] + " target " + String(actPara->parent) + " me " + String(myID));
-
-			if (para_sel && actPara->value && !actPara->isFloat)
-			{
-				pararot_pos = pvalue;
-				paraencoder->setPosition(pararot_pos);
-				int tv = *actPara->value;
-				int setv = map(tv, actPara->vstart, actPara->vend, 0, 10000);
-				Menus[HIRES]->myEnc->write(setv);
-			}
-			else
-				displayMenu();
-		}
-
-		Menu::onButton(false);
-
-		return;
-	}
-	void pararot_test()
-	{
-		paraencoder->tick();
-		int newPos = paraencoder->getPosition();
-		pararot_dir = (int)paraencoder->getDirection();
-		if (Menus[SETTINGS]->hiRes && !pararot_dir)
-		{
-			int val = Menus[HIRES]->rawvalue;
-			pararot_dir = Menus[HIRES]->rawdir;
-			newPos = map(val, 1, 10000, actPara->vstart, actPara->vend);
-			if (newPos == rot_pos)
-				pararot_dir = 0;
-			if (pararot_dir && debug == 1)
-			{
-				Serial.print("pos:");
-				Serial.print(pararot_pos);
-				Serial.print(" new:");
-				Serial.print(newPos);
-				Serial.print(" dir:");
-				Serial.println(pararot_dir);
-			}
-		}
-		if (pararot_pos != newPos && pararot_dir)
-		{
-			pararot_pos = newPos;
-
-			if (actPara && !actPara->isFloat)
-			{
-				if (pararot_pos > actPara->vend)
-					pararot_pos = actPara->vstart;
-				else if (pararot_pos < actPara->vstart)
-					pararot_pos = actPara->vend;
-			}
-			else if (actPara)
-			{
-				//        if(debug==1)Serial.println(pararot_dir);
-				if (pararot_pos > actPara->fvend)
-					pararot_pos = actPara->fvstart;
-				else if (pararot_pos < actPara->fvstart)
-					pararot_pos = actPara->fvend;
-			}
-
-			paraencoder->setPosition(pararot_pos);
-			//        if(debug==1)Serial.print("pos:");
-			//        if(debug==1)Serial.print(pararot_pos);
-			//        if(debug==1)Serial.print(" dir:");
-			//        if(debug==1)Serial.println(pararot_dir);
-		}
-	}
-
-	Parameter *getPara(int p)
-	{
-		if (p > 0 && p < NUMSYNTH)
-			return Paras[p];
-		return nullptr;
-	}
-
-	signed char SynthPara = 0;
-	signed char Strum = 0;
-	signed char CV1 = 0;
-	signed char CV2 = 0;
-	static int AudioTG[54];
-	static int CV1TG;
-	static int CV2TG;
-	static int StrumTG;
-	Parameter *Paras[100];
-	Parameter *actPara = 0;
-	signed char actPnum = 0;
-	// int nump = 1;
-	signed char eventtype = 0; // 0: off,1: on; 2: CC event;3: pitch,4: no event, 5: analog change, 6: distance change, 7: touch event
-	int SourceVelocity = 0;
-	//   Parameter* pparas[NUMSYNTH + 1];
-	static MenuPara *SynthMenu;
-};
-class MenuTouch : public Menu
-{
-public:
-	MenuTouch(void) : Menu(TOUCH, "Touch Zone")
-	{
-		nump = 1;
-		for (int i = nump; i < nump + 6; i++)
-		{
-			items[i] = "Zone " + String(i);
-		}
-		numitems = 7;
-	}
-};
-
-#include "settings.h"
-#include "targets.h"
-#include "externals.h"
-#include "midisource.h"
-#include "zones.h"
-
+#include "paramenu.h"
 #endif

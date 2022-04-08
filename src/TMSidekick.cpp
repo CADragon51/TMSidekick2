@@ -3,22 +3,22 @@
 #include <gfxfont.h>
 #include <Adafruit_SPITFT_Macros.h>
 #include <Adafruit_SPITFT.h>
-#include <SSD1306init.h>
-#include <SSD1306AsciiSpi.h>
-#include <SSD1306AsciiSoftSpi.h>
-#include <SSD1306Ascii.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Encoder.h>
 void printA4(String);
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
+#include "base64.h"
 #include <USBHost_t36.h>
 #include <SD.h>
 #include <SPI.h>
 #include <Wire.h>
-#include "setoled.h"
+#define CS_PIN 38
+#define RST_PIN 10
+#define DC_PIN 9
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
+						 &SPI1, DC_PIN, RST_PIN, CS_PIN);
 #include "CAAudio.h"
 #include "AudioTool.h"
 
@@ -32,155 +32,81 @@ void printA4(String);
 #include "midifunc.h"
 #include "mappings.h"
 #include "functions.h"
+#include "webinter.h"
 extern const int16_t myWaveform[256]; // defined in myWaveform.ino
-
 elapsedMillis joy;
-//elapsedMillis fftreset;
+elapsedMillis web;
+elapsedMillis midiplay;
+// elapsedMillis fftreset;
 signed char Menu::contrast = 1;
 short Menu::isshowing = 0;
 Parameter *Parameter::aHIPara = 0;
 Parameter *Parameter::aLOPara = 0;
 Parameter *Parameter::aFPara = 0;
 Parameter *Parameter::aDPara = 0;
+Parameter *Parameter::aRPara = 0;
 
-//IntervalTimer midiMapTimer;
-//IntervalTimer guitarHeroTimer;
-//IntervalTimer volumeTimer;
-int MenuPara::AudioTG[54] = {0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0};
-int MenuPara::CV1TG = 0;
-int MenuPara::CV2TG = 0;
-int MenuPara::StrumTG = 0;
+// IntervalTimer midiMapTimer;
+// IntervalTimer guitarHeroTimer;
+// IntervalTimer volumeTimer;
+// int MenuPara::AudioTG[54] = {0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 							 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 							 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 							 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 							 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 							 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// int MenuPara::CV1TG = 0;
+// int MenuPara::CV2TG = 0;
+// int MenuPara::StrumTG = 0;
 signed char Menu::actSubmenu = 0;
 signed char Menu::useBPM = 0;
 signed char Menu::hiRes = 0;
 signed char Menu::isRat = 0;
-signed char Menu::byPass = 0;
+signed char Menu::procMode = 0;
 signed char Menu::sendAfter = 0;
 signed char Menu::strum = 0;
 signed char Menu::noPanic = 0;
 signed char Menu::triggerCC = 0;
 signed char Menu::ratdiv = 2;
-short Menu::maparr[100];
-byte Menu::mnx = 0;
+// const unsigned int inPort = 8888;
+unsigned char Menu::BPM = 120;
+byte mac[] = {
+	0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress ip(192, 168, 1, 177);
 
-float Menu::BPM = 120;
+// Enter the IP address of the server you're connecting to:
 
 bool MenuSynth::opencalled = false;
 int led = 13;
 extern int fx;
-//float fftmax[512];
+RotaryEncoder *Menu::encoder;
+RotaryEncoder *Menu::paraencoder;
+Encoder *Menu::myEnc;
+#include "midiplay.h"
+const int buttonPin = 15;		// the number of the pushbutton pin
+const int ledPin = LED_BUILTIN; // the number of the LED pin
+								// LED_BUILTIN is set to the correct LED pin independent of which board is used
+
+// Variables will change:
+int ledState = HIGH;	   // the current state of the output pin
+int buttonState;		   // the current reading from the input pin
+int lastButtonState = LOW; // the previous reading from the input pin
+
+// the following variables are unsigned longs because the time, measured in
+// milliseconds, will quickly become a bigger number than can be stored in an int.
+unsigned long lastDebounceTime = 0; // the last time the output pin was toggled
+unsigned long debounceDelay = 50;	// the debounce time; increase if the output flickers
+
 void setup()
 {
+
 	AudioNoInterrupts();
 	//	float a = 0.125, d = 0.125, s = 0.5, r = 0.75, M = 1024 * 32 - 1, A = 256 * a, R = 256 * r, S = M * s, D = d * 256;
 	static byte leds[6] = {36, 34, 32, 30, 28, 13};
 	File frec;
 	Serial.begin(9600 * 16);
 	pinMode(led, OUTPUT);
-	setoled();
-	debug = 0;
-	AudioMemory(400);
-
-	mixer12.gain(2, 0.4);
-	noise1.amplitude(0);
-	if (!display.begin(SSD1306_SWITCHCAPVCC))
-	{
-		Serial.println(F("SSD1306 allocation failed"));
-		for (;;)
-			; // Don't proceed, loop forever
-	}
-	display.clearDisplay();
-	display.drawBitmap(0, 0, tmslogo, 128, 64, 1);
-	display.display();
-	delay(1000); // Pause for 1 seconds
-	createStruct();
-	MIDI_SER.begin(MIDI_CHANNEL_OMNI);
-	MIDI1.begin();
-	MIDI2.begin();
-	digitalWrite(led, HIGH);
 	Wire.begin();
-	//  Wire2.begin();
-	if (debug == 1)
-		Serial.print("Initializing SD card...");
-	pinMode(11, OUTPUT);
-	if (!SD.begin(chipSelect))
-	{
-		if (debug == 1)
-			Serial.println("SD initialization failed!");
-		return;
-	}
-	if (debug == 1)
-		Serial.println("initialization done.");
-	root = SD.open("/");
-	if (debug == 1)
-		Serial.println("reading SD ");
-	if (debug == 1)
-		Serial.println("done!");
-	lastTime = millis();
-	createmap();
-	settrill();
-	setButtons();
-	if (debug == 1)
-		Serial.println("Button set");
-	setmidi();
-	printDirectory(root, 0);
-	if (debug == 1)
-		Serial.println("Trying Restore");
-	if (SD.exists("TMSIDEK.INI"))
-	{
-		frec = SD.open("TMSIDEK.INI", FILE_READ);
-		if (frec)
-		{
-			if (debug == 1)
-				Serial.println("loading last data ");
-			Restore(frec);
-			if (debug == 1)
-				Serial.println("data loaded");
-			frec.close();
-		}
-	}
-
-	if (lastMap > 0 && lastMap < fx)
-		Menus[MAPPINGS]->mapit();
-	if (lastScale > 0 && lastScale < sfx)
-		Menus[SCALES]->scaleit();
-
-	if (Menus[SETTINGS]->byPass)
-	{
-		digitalWrite(28, HIGH);
-		Buttons[5]->mlastButtonState = LOW;
-		Buttons[5]->output = LOW;
-	}
-	menuState = MAIN;
-	if (Menus[menuState])
-		Menus[menuState]->show(true, 149);
-	else if (debug == 1)
-		Serial.println((int)Menus[menuState]);
-
-	for (int v = 0; v < NUMVOICES; v++)
-	{
-		vcos1[v]->arbitraryWaveform(myWaveform, 172.0);
-		sine21.arbitraryWaveform(myWaveform, 172.0);
-		sine2.arbitraryWaveform(myWaveform, 172.0);
-		sine1.arbitraryWaveform(myWaveform, 172.0);
-		sine16.arbitraryWaveform(myWaveform, 172.0);
-	}
-	mixer1.gain(0, 0);
-	mixer1.gain(1, 0);
-	mixer1.gain(2, 1);
-	mixer1.gain(3, 1);
-	mixer3.gain(0, 1);
-	dc9.amplitude(1);
-	dc3.amplitude(1);
-	filter1.octaveControl(2);
-	prename = "PRESET" + String(recentPre) + ".PRS";
-	if (preindex > 0)
-		prename = presetnames[preindex];
 	alpha4.begin(0x70); // pass in the address
 
 	alpha4.writeDigitRaw(3, 0x0);
@@ -199,149 +125,354 @@ void setup()
 	alpha4.writeDigitRaw(3, 0xFFFF);
 	alpha4.writeDisplay();
 	delay(200);
-	printA4("Hi!");
-	for (int i = 0; i < 6; i++)
-	{
-		pinMode(leds[i], OUTPUT);
-		if (debug == 1)
-			Serial.println("led " + String(i));
-		digitalWrite(leds[i], HIGH);
-		delay(500);
-	}
-	if (debug == 1)
-		Serial.println("Leds OK");
+	//	setoled();
+	AudioMemory(400);
+	//	Udp.begin(inPort);
+	// Check for Ethernet hardware present
+	//	EthernetClass::setSocketSize(10 * 1024);
+	Ethernet.begin(mac, ip);
 
-	AudioInterrupts();
-}
-unsigned long Rdeltat;
-unsigned long myRTime;
-unsigned long RlastTime;
-void print(String out, int x, int y)
-{
-	display.setCursor(x, y);
-	const char *outstr = out.c_str();
-	display.setTextColor(1, 0);
-	for (int16_t i = 0; i < (int)out.length(); i++)
+	if (Ethernet.hardwareStatus() == EthernetNoHardware)
 	{
-		char c = *outstr++;
-		display.write(c);
+		FDBG("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+		while (true)
+		{
+			delay(1); // do nothing, no point running without Ethernet hardware
+		}
 	}
+	if (Ethernet.linkStatus() == LinkOFF)
+	{
+		FDBG("Ethernet cable is not connected.");
+	}
+	FDBG("Ethernet connected.");
+
+	noise1.amplitude(0);
+	if (!display.begin(SSD1306_SWITCHCAPVCC))
+	{
+		DBG(F("SSD1306 allocation failed"));
+		for (;;)
+			; // Don't proceed, loop forever
+	}
+	display.clearDisplay();
+	display.setTextColor(1, 0);
+	display.drawBitmap(0, 0, tmslogo, 128, 64, 1);
+	display.display();
+	delay(1000); // Pause for 1 seconds
+	createStruct();
+	MIDI_SER.begin(MIDI_CHANNEL_OMNI);
+	MIDI1.begin();
+	MIDI2.begin();
+	digitalWrite(led, HIGH);
+
+	//  Wire2.begin();
+#if 1
+	Serial.print("Initializing SD card...");
+	pinMode(11, OUTPUT);
+	if (!SD.begin(chipSelect))
+	{
+
+		FDBG("SD initialization failed!");
+		return;
+	}
+
+	FDBG("initialization done.");
+
+//	root = SD.open("/");
+#endif
+
+	SMF.begin(&SD.sdfs);
+	//	SMF.load("Audio.mid");
+	SMF.setMidiHandler(midiCallback);
+	SMF.setSysexHandler(sysexCallback);
+
+	FDBG("reading SD ");
+
+	FDBG("done!");
+
+	lastTime = millis();
+	createmap();
+	settrill();
+	setButtons();
+	printA4(__LINE__);
+	DBG("Button set");
+	setmidi();
+	for (int i = 0; i < 84; i++)
+		Menus[SCALES]->insertItem(scaleNames[scFP[i]]);
+	printDirectory(SD.open("/"), 0);
+
+	for (int i = 3; i < Menus[MAPPINGS]->numitems && jj1 < 100; i++)
+		opts[jj1++] = Menus[MAPPINGS]->items[i];
+	for (int i = 3; i < Menus[SCALES]->numitems && j2 < 100; i++)
+		scales[j2++] = Menus[SCALES]->items[i];
+	chordopt[j3++] = "Chord";
+	for (int c = 11; c < 63; c++)
+		chordopt[j3++] = chordName[chordIds[c]].replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+
+	DBG("Trying Restore");
+
+	if (SD.exists("TMSidekick.ini"))
+	{
+		frec = SD.open("TMSidekick.ini", FILE_READ);
+		if (frec)
+		{
+
+			FDBG("loading last data ");
+			Restore(frec);
+
+			FDBG("data loaded");
+			frec.close();
+		}
+	}
+
+	//	if (lastMap > 0 && lastMap < fx)
+	//		Menus[MAPPINGS]->mapit(__CALLER__);
+	int ia = 0;
+	String ipa = "";
+	while (1)
+	{
+		ipa += String(ip[ia], DEC);
+		if (++ia >= 4)
+			break;
+		ipa += ".";
+	}
+
+	Menus[VERSION]->insertItem(ipa);
+	Udp.begin(localPort);
+
+	//	delay(5000);
+	FDBG("waiting for UDP...");
+
+	if (Udp.parsePacket())
+	{
+		int packetSize = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+		if (packetSize)
+		{
+			Serial.print("Received packet of size ");
+			DBG(packetSize);
+			Serial.print("From ");
+			server = Udp.remoteIP();
+			webgui.connect(&client, server);
+			String ipa = "";
+			for (int i = 0; i < 4; i++)
+			{
+				ipa += String(server[i]);
+				if (i < 3)
+				{
+					ipa += ".";
+				}
+			}
+			// read the packet into packetBufffer
+			Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+			//			DBG("Contents:");
+			//			DBG(packetBuffer);
+			Menus[VERSION]->insertItem("GUI");
+			Menus[VERSION]->insertItem(ipa);
+
+			// send a reply to the IP address and port that sent us the packet we received
+		}
+	}
+	//	websetup();
+
+	if (Menus[SETTINGS]->procMode)
+	{
+		digitalWrite(28, HIGH);
+		Buttons[5]->mlastButtonState = LOW;
+		Buttons[5]->output = LOW;
+	}
+	menuState = MAIN;
+	display.setTextColor(1, 0);
+	if (Menus[menuState])
+		Menus[menuState]->show(true, __CALLER__);
+		//	else if (debug == 1)
+		//		DBG((int)Menus[menuState]);
+
+#include "synthsetup.h"
 }
+#include "player.h"
+
 void loop()
 {
-	int to = 50;
-
+	int to = 100;
+	int to2 = 100;
 	// bool isplaying = false;
-	bool anyactive = false;
-	if(Menus[SETTINGS]->byPass ==3)
+#if 1
+	// bool anyactive = false;
+	myusb.Task();
+	midi1.read();
+	usbMIDI.read();
+	MIDI_SER.read();
+	if (0)
+	{
+		FDBG("MIDI read:" + SP(MIDI_SER.getType()) + " " + SP(MIDI_SER.getData1()) + " " + SP(MIDI_SER.getData2()));
+		printA4(SP(MIDI_SER.getType()));
+		if (MIDI_SER.getType() == 0xc0)
+		{
+			//			usbProgamChange(usbMIDI.getChannel(), usbMIDI.getData1());
+		}
+	}
+	if (!playSeq && (transport == PLAYING||transport == REPEAT))
+	{
+		if (!SMF.isEOF())
+		{
+			if (SMF.getNextEvent())
+				tickMetronome();
+		}
+		else
+		{
+			transport = STOPPED;
+		}
+	}
+	if (playSeq && (int)midiplay >= lastplay && (transport == PLAYING || transport == REPEAT) && lastEvent > 0)
+	{
+		lastplay = (int)midiplay + 1;
+		//		printA4(midiplay);
+		playnextMidi();
+	}
+#if 0
+	if (Menus[SETTINGS]->procMode == 3)
 	{
 		AudioNoInterrupts();
-		
-	} 
+	}
 	else
 		AudioInterrupts();
-	for (v = 0; v < NUMVOICES&&0; v++)
+
+	for (v = 0; v < NUMVOICES && 0; v++)
 	{
-		if (vcaenv[v]->isActive())
+		//		if (vcaenv[v]->isActive())
 		{
 			printA4(midiNamesFlat[v2note[v] % 12] + String(v2note[v] / 12));
 			//			if (vcaenv[v]->isSustain())
 			//				isplaying = true;
 			//			break;
-			anyactive = true;
+			//			anyactive = true;
 			if (vtmillis[v] > 2000)
 			{
 				vcaenv[v]->noteOff();
 				vcfenv[v]->noteOff();
 				vtmillis[v] = 0;
-				//	if (debug == 1)
+				//
 				Serial.printf("**** removed:@ %f %d v=%d****\n", note_frequency[v2note[v]], v2note[v], v);
 				usbMIDI.sendNoteOff(v2note[v], 0, _channel, cable);
 				MIDI1.sendNoteOff(v2note[v], 0, _channel);
 				MIDI2.sendNoteOff(v2note[v], 0, _channel);
 				v2note[v] = -1;
-				anyactive = false;
+				//				anyactive = false;
 				onoff = 0;
 			}
 		}
 	}
-	digitalWrite(led, anyactive);
+#endif
+	//	digitalWrite(led, anyactive);
 
 	//	if (!trigger)
 	//		fclick1.setOn(false);
 	if ((int)joy >= to)
 	{
-		checkTrill();
+		//		checkTrill();
 		for (int e = 0; e < 9; e++)
 		{
 			MenuExtSet *mes = (MenuExtSet *)Menus[EXTSETTINGS + e];
 			mes->probe();
 		}
+		checkTrill();
 		joy = joy - to;
+		// read the state of the switch into a local variable:
+		int reading = digitalRead(buttonPin);
+
+		// check to see if you just pressed the button
+		// (i.e. the input went from LOW to HIGH), and you've waited long enough
+		// since the last press to ignore any noise:
+
+		// If the switch changed, due to noise or pressing:
+		if (reading != lastButtonState)
+		{
+			// reset the debouncing timer
+			lastDebounceTime = millis();
+		}
+
+		if ((millis() - lastDebounceTime) > debounceDelay)
+		{
+			// whatever the reading is at, it's been there for longer than the debounce
+			// delay, so take it as the actual current state:
+
+			// if the button state has changed:
+			if (reading != buttonState)
+			{
+				buttonState = reading;
+
+				// only toggle the LED if the new button state is HIGH
+				if (buttonState == HIGH)
+				{
+					ledState = !ledState;
+				}
+			}
+		}
+
+		// set the LED:
+		digitalWrite(ledPin, ledState);
+
+		// save the reading. Next time through the loop, it'll be the lastButtonState:
+		lastButtonState = reading;
 	}
+
 	//			printA4(String(AudioMemoryUsageMax()));
-	myusb.Task();
-	midi1.read();
-	MIDI_SER.read();
-	for (int b = 0; b < 8; b++)
+	for (int b = 0; b < 7; b++)
 	{
 		if (Buttons[b])
 			Buttons[b]->loop();
 	}
-	//  if(debug==1)Serial.println("188 show");
+	//	DBG((int)Menus[menuState]);
+#endif
 	if (Menus[menuState])
-		Menus[menuState]->show(refresh, 191);
-	refresh = false;
-#if 0
-	if (isplaying && fft256_1.isActive() && 0)
+		Menus[menuState]->show(false, __CALLER__);
+#if 1
+	if ((int)web >= to2)
 	{
-		int xi = 0;
-		float fm = 0;
-		int im = 0;
-		for (int i = 0; i < 512; i++)
+		if (!foundserver)
+			DBG("waiting for UDP...");
+		if (Udp.parsePacket() && !foundserver)
 		{
-			float x = fft256_1.read(i) * 256;
-			if (x > 2)
+			int packetSize = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+			if (packetSize)
 			{
-				//				Serial.println(String(i) + " " + String(x));
-				if (xi == 0)
+				Serial.print("Received packet of size ");
+				DBG(packetSize);
+				Serial.print("From ");
+				server = Udp.remoteIP();
+				webgui.connect(&client, server);
+				Menus[MAIN]->rot_pos = 1;
+				websetup();
+				for (int i = 0; i < 4; i++)
 				{
-					xi = i;
+					Serial.print(server[i], DEC);
+					if (i < 3)
+					{
+						Serial.print(".");
+					}
 				}
-				if (x > fm)
+				Serial.print(", port ");
+				DBG(Udp.remotePort());
+
+				// read the packet into packetBufffer
+				Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+				foundserver = true;
+				String ipa = "";
+				for (int i = 0; i < 4; i++)
 				{
-					fm = x;
-					im = i;
+					ipa += String(server[i]);
+					if (i < 3)
+					{
+						ipa += ".";
+					}
 				}
+				Menus[VERSION]->insertItem("GUI");
+				Menus[VERSION]->insertItem(ipa); // send a reply to the IP address and port that sent us the packet we received
 			}
 		}
-		if (xi > 4)
-			xi -= 4;
-		display.clearDisplay();
-		//float dx = 128.0 / (float)(256 - xi);
-		//		Serial.println(String(fm));
-		//		print("peak @ "+String(im*43)+"Hz",24, 0);
-
-		for (int x = 0, xp = 0; x < 128; x++, xp++)
-		{
-			float y = fft256_1.read(x) * 256 * 20 / fm;
-			//			float y1 = fft256_1.read(2 * x + 1) * 256 * 20 / fm;
-			display.writeLine(xp, 63 - y, xp, 63, 1);
-			//			display.writeLine(xp * 2 + 1, 63 - y1, xp * 2 + 1, 63, 1);
-			if (2 * x == im)
-				display.drawFastVLine(xp, 0, 63, 1);
-
-			//			display.writeLine(x * 2 + 1, 63 - y, x * 2 + 1, 63, 1);
-			if (y > fftmax[x])
-			{
-				fftmax[x] = y;
-			}
-			if (!xp)
-				display.writeLine(0, 63 - fftmax[x] - 25, 0, 63 - fftmax[x] - 25, 1);
-			else
-				display.writeLine(xp - 1, 63 - fftmax[x - 1] - 25, xp, 63 - fftmax[x] - 25, 1);
-		}
-		display.display();
+		if (foundserver)
+			webloop();
+		web = web - to2;
 	}
 #endif
 }
+#include "tmsfunctions.h"

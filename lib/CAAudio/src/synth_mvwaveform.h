@@ -52,15 +52,20 @@ public:
 	uint32_t ftop = (4294967296.0 / AUDIO_SAMPLE_RATE_EXACT);
 	void frequency(float freqFrom, float freqTo)
 	{
-//		Serial.println("Freq from " + String(freqFrom) + " to " + String(freqTo));
+	//	Serial.println("Freq from " + String(freqFrom) + " to " + String(freqTo)+" t "+String(tau));
+		if(tau==0)
+		{
+			frequency(freqTo);
+			return;
+		}
 		float ff[3];
 		float ft[3];
 		ff[0] = freqTo;
 		ff[1] = ff[0] + detune;
-		ff[2] = ff[0] * 2;
+		ff[2] = ff[0] / 2;
 		ft[0] = freqFrom;
 		ft[1] = ft[0] + detune;
-		ft[2] = ft[0] * 2;
+		ft[2] = ft[0] / 2;
 		if (freqFrom < 0.0)
 		{
 			freqFrom = 0.0;
@@ -79,10 +84,10 @@ public:
 		}
 		ff[0] = freqFrom;
 		ff[1] = ff[0] + detune;
-		ff[2] = ff[0] * 2;
+		ff[2] = ff[0] / 2;
 		ft[0] = freqTo;
 		ft[1] = ft[0] + detune;
-		ft[2] = ft[0] * 2;
+		ft[2] = ft[0] / 2;
 		upw = freqTo - freqFrom;
 		if (freqTo == 0 || portatime == 0)
 			return;
