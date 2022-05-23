@@ -6,6 +6,12 @@ for (int v = 0; v < NUMVOICES; v++)
     sine1.arbitraryWaveform(myWaveform, 172.0);
     sine16.arbitraryWaveform(myWaveform, 172.0);
 }
+//float cg = 0.2;
+// mixer8.gain(1, cg);
+// mixer8.gain(2, cg);
+// mixer8.gain(3, cg);
+// mixer12.gain(0, cg);
+// mixer12.gain(1, cg);
 mixer1.gain(0, 0);
 mixer1.gain(1, 0);
 mixer1.gain(2, 1);

@@ -14,13 +14,14 @@ extern bool trigger;
 class Button
 {
 public:
-	Button(byte pin, byte pout, signed char *pvar, int pinc, int plimit, elapsedMillis *led1, signed char cp)
+	Button(byte pin, byte pout, signed char *pvar, int pinc, int plimit, elapsedMillis &led1, signed char cp)
 	{
 		inp = pin;
 		outp = pout;
 		var = pvar;
 		inc = pinc;
 		limit = plimit;
+
 		pinMode(inp, INPUT_PULLUP);
 		pinMode(outp, OUTPUT);
 		if(0)
@@ -32,6 +33,7 @@ public:
 		}
 		*var = 0;
 		led = led1;
+		led = 1000;
 		cb = cp;
 		test = false;
 		mbuttonState = HIGH;
@@ -75,7 +77,7 @@ public:
 	{
 		if (test)
 		{
-			check();
+			checkButton();
 			return;
 		}
 
@@ -94,6 +96,8 @@ public:
 			// reset the debouncing timer
 			mlastDebounceTime = millis();
 		}
+//		if(inp==29)
+//		FDBG(SN(inp)+SN(inc) + SN(*var));
 		if (*var == 0)
 		{
 			digitalWrite(outp, LOW);
@@ -106,9 +110,12 @@ public:
 			if (*var > 0)
 			{
 				int to = 1000 / *var;
-				if ((int)(*led) >= to)
+//				FDBG(to);
+//				FDBG("flash " + SN((int)(led)));
+				if ((int)(led) >= to)
 				{
-					*led = *led - to;
+					led = led - to;
+//					FDBG("flash "+SN((int)(led)));
 					//					digitalWrite(outp, LOW);
 					flash();
 				}
@@ -117,9 +124,9 @@ public:
 		if (inc == 1 && *var > 0)
 		{
 			int to = 1000 / *var;
-			if ((int)(*led) >= to)
+			if ((int)(led) >= to)
 			{
-				*led = *led - to;
+				led = led - to;
 				digitalWrite(Buttons[cb]->outp, LOW);
 				ledstate[Buttons[cb]->outp] = false;
 				flash();
@@ -128,10 +135,10 @@ public:
 		if (inc == -1 && *var < 0)
 		{
 			int to = -1000 / *var;
-			if ((int)(*led) >= to)
+			if ((int)(led) >= to)
 			{
 				//				if(debug==1)DBG("Time:" + String(to));
-				*led = *led - to;
+				led = led - to;
 				digitalWrite(Buttons[cb]->outp, LOW);
 				ledstate[Buttons[cb]->outp] = false;
 				flash();
@@ -185,7 +192,7 @@ public:
 					DBG("button " + String(inc) + " " + String(limit) + " " + String(*var) + " @ " + String(inp));
 
 					if (*var)
-						*led = abs(1000 / *var);
+						led = abs(1000 / *var);
 					if (abs(limit) == 12)
 						printA4("S" + String(*var));
 					else if (abs(limit) == 5)
@@ -207,7 +214,7 @@ public:
 	}
 	int sout = 4064;
 	int vout[5] = {0, 1280, 2560, 3840, 4095};
-	bool check(bool nocall = false);
+	bool checkButton(bool nocall = false);
 
 	bool flash()
 	{
@@ -221,7 +228,7 @@ public:
 	int mledState = HIGH;		 // the current state of the output pin
 	int mbuttonState = HIGH;	 // the current reading from the input pin
 	int mlastButtonState = HIGH; // the previous reading from the input pin
-	elapsedMillis *led;
+	elapsedMillis led;
 	// the following variables are unsigned longs because the time, measured in
 	// milliseconds, will quickly become a bigger number than can be stored in an int.
 	unsigned long mlastDebounceTime = 0; // the last time the output pin was toggled

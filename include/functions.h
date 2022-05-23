@@ -7,7 +7,7 @@ String externals = {"Joystick X,Joystick Y,Pot 1,Pot 2,Pedal 1,Pedal 2,FSR,Hi-Re
 void onButton(Menu *menu)
 {
 	//	)
-	DBG("ID " + String(menu->myID) + " " + menu->items[0] + " clicked @"+menu->rot_pos);
+	FDBG("ID " + String(menu->myID) + " " + menu->items[0] + " clicked @"+menu->rot_pos);
 	if (menu->rot_pos == 0)
 		onBackButton(menu);
 	else
@@ -92,12 +92,12 @@ void dumpDisplay(void)
 
 void setButtons(void)
 {
-	Buttons[0] = new Button(37, 36, &octave, -1, -5, &led1, 1);
-	Buttons[1] = new Button(35, 34, &octave, 1, 5, &led2, 0);
-	Buttons[2] = new Button(33, 32, &semiTone, -1, -12, &led3, 3);
-	Buttons[3] = new Button(31, 30, &semiTone, 1, 12, &led4, 2);
+	Buttons[0] = new Button(37, 36, &octave, -1, -5, led1, 1);
+	Buttons[1] = new Button(35, 34, &octave, 1, 5, led2, 0);
+	Buttons[2] = new Button(33, 32, &semiTone, -1, -12, led3, 3);
+	Buttons[3] = new Button(31, 30, &semiTone, 1, 12, led4, 2);
 	Buttons[4] = new Button(7);
-	Buttons[5] = new Button(29, 28, &Menus[SETTINGS]->procMode, 2, 3, &led5, 5);
+	Buttons[5] = new Button(29, 28, &Menus[SETTINGS]->procMode, 2, 3, led5, 5);
 //	Buttons[6] = new Button(4);
 	Buttons[6] = new Button(cancelButton);
 //	Buttons[7] = new Button(12);
@@ -107,14 +107,14 @@ void createStruct(void)
 {
 #include "assigns.h"
 
-
+	STACK;
 	for (int m = 0; m < NUM_MENUS; m++)
 	{
 		Menus[m] = 0;
 	}
 	Menus[MAPPINGS] = new Menu(MAPPINGS, "Mappings", "Edit Map,Show Map,Chromatic");
-	Menus[MAPPINGS]->mapit();
-	filenames[3]="chromatic interval.map";
+//	Menus[MAPPINGS]->mapit();
+//	filenames[3]="chromatic interval.map";
 	Menus[NEWMAP] = new Menu(NEWMAP, "Edit Map", "", MAPPINGS);
 	Menus[SCALES] = new Menu(SCALES, "Scales", "Find Scale,Show Scale");
 	Menus[PRESETS] = new Menu(PRESETS, "Synth Preset", "", SYNTHSETTINGS);
@@ -128,6 +128,7 @@ void createStruct(void)
 	Menus[MIDISET] = new Menu(MIDISET, "MIDI In", midiPorts);
 	Menus[EXTERNALS] = new Menu(EXTERNALS, "Controls", externals);
 	Menus[TOUCH] = new MenuTouch();
+	STACK;
 	Menus[SYNTHSETTINGS] = new MenuSynth(SYNTHSETTINGS);
 	String mainMS = "";
 #define NUMMAIN 9

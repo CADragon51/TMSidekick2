@@ -19,6 +19,7 @@ String endgroup = "</g>";
 String svgend = "</svg>";
 // String transform = "<g     transform=\"";
 byte notey[24] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10, 11, 11, 12, 12, 13, 13};
+byte noteyS[24] = {0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 12, 13, 13};
 byte noteflat[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 byte lastflat = 0;
 Parameter **sParas = MenuPara::SynthMenu->Paras;
@@ -98,7 +99,7 @@ String showLine(float x1, float y1, float x2, float y2, int width = 1)
     return ret.replace(swnw, "_w_");
 }
 
-String barnote(float x, float y, bool center, String color = "#000000")
+String barNote(float x, float y, bool center, String color = "#000000")
 {
     String out = "";
     String mid = showLine(x, y - 4, x + 18, y - 4);
@@ -109,40 +110,41 @@ String barnote(float x, float y, bool center, String color = "#000000")
         out += bottom;
     return out;
 }
-String shownote(byte n, float basex, float basey)
+String showNote(byte n, float basex, float basey)
 {
     int ypos = notey[n % 24];
+    int shiftx = 0;
+    if (!showflat)
+        ypos = noteyS[n % 24];
     bool isflat = noteflat[n % 12];
+    static float ox = 0;
     String out = "";
-    //    Serial.println(String(n % 24) + " @ " + String(ypos));
+    //   Serial.println(midiNames[n % 12] + " @ " + String(ypos) + " " + SN(lastflat) + " " + basex);
+    if (lastflat == ypos && ox == basex)
+    {
+        shiftx = -10;
+        //        Serial.println(midiNames[n % 12] + " @ " + String(ypos) + " " + SN(lastflat) + " " + basex);
+    }
     if (isflat)
     {
-        lastflat = ypos;
-        out = showtext("b", basex - 12, basey - ypos * 6 - 3, "");
+        if (showflat)
+            out = showText("b", shiftx + basex - 12, basey - ypos * 6 - 3, "", "white");
+        else
+        {
+            out = showText("#", shiftx + basex - 12, basey - ypos * 6 - 3, "", "white");
+        }
     }
-    out += showtext("w", basex, basey - ypos * 6 - 3, "");
+    out += showText("w", shiftx + basex, basey - ypos * 6 - 3, "", "white");
 
     if (ypos == 0 || ypos > 11)
     {
-        out += barnote(basex - 4, basey - ypos * 6 + 1, ypos != 13);
+        out += barNote(shiftx + basex - 4, basey - ypos * 6 + 1, ypos != 13);
     }
+    lastflat = ypos;
+    ox = basex;
     return out;
 }
 
-// String showclef(float ptop)
-// {
-//     String my = String(ptop);
-//     String ret = group +
-//                  "<path"
-//                  " style=\"fill:#063333;fill-opacity:1;stroke-width:0.3\" transform=\" translate(0 -100)\""
-//                  " d=\"m 30," +
-//                  my + " _clef_ " + endgroup;
-//     //    Serial.println(ret);
-//     return ret;
-// }
-// sMessage = sMessage.replaceAll('_ctext_', ctext);
-// sMessage = sMessage.replaceAll('_note_', notew);
-// sMessage = sMessage.replaceAll('_flat_', noteb);
 String notew = "fill =\"#ffffff\"  class =\"note\"  >w</text>";
 String noteb = "fill =\"#ffffff\"  class =\"flat\"  >b</text>";
 String ctext = "fill =\"#ffffff\"  class =\"small\" >";
@@ -150,38 +152,279 @@ String tx = "<text X=\"";
 String ty = "\"Y =\"";
 String ta = " text-anchor = \"middle\" ";
 
-String showtext(String text, int x, int y, String tclass = "")
+String showText(String text, int x, int y, String tclass = "", String fill = "#ffffff")
 {
     String ret = "_x_" + String(x) + "_y_" + String(y) + "\" ";
     if (text == "w")
         ret += "_n_";
     else if (text == "b")
         ret += "_f_";
+    else if (text == "#")
+        ret += "_s_";
     else if (text == "&amp;")
-        ret += "fill=\"#ffffff\" class=\"clef\" >&amp;</text>";
+        ret += "fill=\"" + fill + "\" class=\"clef\" >&amp;</text>";
     else if (tclass.indexOf("small") > -1)
         ret += "_c_" + text + "</text>";
+    else if (tclass.indexOf("tiny") > -1)
+        ret += "_t_" + text + "</text>";
+    else if (tclass.indexOf("teeny") > -1)
+        ret += "_u_" + text + "</text>";
     else
-        ret += " text-anchor = \" middle \"  fill =\" #ffffff \"   >" + text + "</text>";
-#if 0
-    String t1 = " " + tclass + " >" + text + "</text>";
-    String t0 = "<text X=\"" + String(x) + "\"Y =\"" + String(y) + "\"";
-    String ta = "";
-    String tc = "";
-    tc = " fill =\"" + color + "\" ";
-    if (tclass == "")
-        ta = " text-anchor = \"middle\" ";
-    ret = t0 + ta + tc + t1;
-    //    Serial.println(ret);
-    ret.replace(notew, "_n_").replace(noteb, "_f_").replace(ctext, "_c_").replace(tx, "_x_").replace(ty, "_y_");
-#endif
-    //   FDBG(ret);
+        ret += " text-anchor = \" middle \"  fill =\"" + fill + "\"   >" + text + "</text>";
     return ret;
 }
 int second = 0;
-String showgrid(int which)
+
+EXTMEM String ltot[] = {"3t", "3s", "s", "3e", "s.", "e", "3q", "3q", "e.", "e.", "q", "q"};
+EXTMEM String erg[maxticks * 4];
+String pat2string(int actpat, int v)
 {
-    String nl = showtext(SN(g_scid*2+1) + " " + scaleNames[g_scid] + " " + midiNamesFlat[scalebase] + " Scale", 300, 20);
+    int pat = actpat;
+    String pzero = "";
+    int f1 = 48;
+    STACK;
+    if (v > -1)
+    {
+        int pos = (actpattern / 4 + actpat) * 4 * maxticks;
+        //       FDBG("pos " + SN(pos) + " " + SN(actpattern) + " "+ SN(actpat));
+        for (int i = 0; i < maxticks * beatlength; i++)
+        {
+            short val = seqpattern[i + pos][v][actgrp];
+            if (val > 0)
+            {
+                val = 1;
+                if (i == 0)
+                    f1 = 0;
+                else if (f1 == 48)
+                    f1 = i;
+                //               FDBG("f1 " + SN(f1));
+            }
+            else
+                val = 0;
+            pzero += SN(val);
+        }
+ //       FDBG("show metro " + SN(pos) + " " + SN(v) + " " + pzero+" "+SN(f1)+SN(actgrp));
+    }
+    else
+    {
+        for (int i = 0; i < maxticks; i++)
+        {
+            bool pt = (pat & (1 << i)) > 0;
+            if (i == 0 && pt)
+                f1 = 0;
+            if (pt)
+            {
+                pzero += "1";
+                if (f1 == 48 && i)
+                    f1 = i;
+            }
+            else
+                pzero += "0";
+        }
+        //       FDBG(pzero);
+    }
+    int p = 0;
+
+    p = SplitS(pzero, '1', erg, maxticks * 4);
+//    FDBG(pzero);
+//    FDBG(p);
+    String rs = "";
+    STACK;
+    for (int i = 1; i < p; i++)
+    {
+        byte nl = erg[i].length();
+        //       FDBG(SN(i) + " notelen " + SN(nl));
+        if (nl < 12)
+        {
+            rs += ltot[nl];
+            //          FDBG(rs + " notelen " + SN(nl));
+        }
+        else if (nl <= 17)
+        {
+            rs += "q.";
+        }
+        else if (nl <= 23)
+        {
+            rs += "h";
+        }
+        else if (nl < 47)
+        {
+            rs += "h.";
+        }
+        else
+        {
+            rs += "w";
+        }
+        //        FDBG(rs + " notelen " + SN(nl));
+    }
+    if (f1 > 12)
+    {
+        if (f1 == 24)
+            f1 = 13;
+        if (f1 == 36)
+            f1 = 14;
+        else
+            f1 = 15;
+    }
+    if(rs.length()>0)
+    rs.replace("3s3s3s", "3sss").replace("3e3e3e", "3eee").replace("3ssse", "3sss e");
+    static String rests[16] = {"", ".", "..", "&#119103;",
+                               "&#119103;.", "&#119103;..", "&#119102;", "&#119102;.",
+                               "&#119102;..", "&#119102;&#119103;", "&#119102;&#119103;.", "%&#119103;..",
+                               "&#119101;", "&#119100;", "&#119100;.", "&#119099;"};
+    //    FDBG(pzero+" rest " + SN(f1));
+    if (f1 > 0)
+        rs = rests[f1] + "&nbsp;" + rs;
+//    FDBG("pat 2 string "+SN(pat) + " " + pzero + " " + SN(f1) + " " + rs);
+    return rs;
+}
+byte checkKey(int p)
+{
+    return acttrigger[p][actgrp] < 128 ? acttrigger[p][actgrp] : 0;
+}
+#define patstate(x) beatCount[x][actgrp] == 0 ? "&#x25AF;" : "&#x25AE;"
+#define actstate(x) beatCount[x][actgrp] == 0 ? "&#x25C7;" : "&#x25C6;"
+//#define patkey(x) checkkey(x) ? "&#x251C;" : "&#x250B;"
+#define patkey(x) "&#x251C;"
+
+void showStatus(int pos)
+{
+    String outblocks = "<span style =\"color:beige;font-size:20px;\">";
+    String inblocks = "<text style =\"color:red;font-size:20px;\">";
+    String markblocks = "<text style =\"color:#FFD700;font-size:20px;\">";
+    String open[2] = {"&#x25AF;", "&#x25AE;"};
+    String key[2] = {"&#x2503;", "&#x2503;"};
+    String act[2] = {"&#x25C7;", "&#x25C6;"};
+    int lastbeat = 0;
+    bool isOver = false;
+    for (int i = 0; i < MAXPAT; i++)
+    {
+        bool isBeat = (i % beatlength) == 0;
+        if (isBeat)
+            lastbeat = i;
+        int b = beatCount[lastbeat][actgrp] == 0 ? 0 : 1;
+        int k = checkKey(lastbeat) > 0 ? 1 : 0;
+        if (patfiles[i][actgrp] != "")
+        {
+            outblocks += "</text><text style =\"color:" +
+                         patcolors[i][actgrp] + ";font-size:20px;\">";
+            //            FDBG(patcolors[i] + " " + patfiles[i] + " " + SN(i) + SN(i - lastbeat * 4) + SN(beatCount[i]));
+            isOver = true;
+        }
+        else if (!isOver)
+        {
+            isOver = false;
+            outblocks += "</text><text style =\"color:beige;font-size:20px;\">";
+        }
+        if (i >= 0 && i < pos)
+        {
+            if (isBeat)
+            {
+                if (actpat[0])
+                    inblocks += key[k];
+                else
+                    markblocks += key[k];
+            }
+            if (actpat[0])
+                inblocks += open[b];
+            else
+                markblocks += open[b];
+            continue;
+        }
+        if (isBeat && (i < startpattern || i > pos))
+        {
+
+            outblocks += key[0];
+        }
+        if (i == pos)
+        {
+            if (isBeat)
+            {
+                if (actpat[0])
+                    inblocks += key[k];
+                else
+                    markblocks += key[k];
+            }
+            if (actpat[0])
+            {
+                inblocks += act[b] + "</text>";
+                outblocks += inblocks;
+            }
+            else
+            {
+                markblocks += act[b] + "</text>";
+                outblocks += markblocks;
+            }
+
+            continue;
+        }
+
+        outblocks += open[b];
+    }
+    outblocks += "</span>";
+    //    FDBG(outblocks);
+    webgui.setMonitor(patternidt2, outblocks);
+}
+String showRhythm(String what, int id)
+{
+
+    String mettext = "<svg width=\"60mm\" height=\"80mm\" id=\"" + String(id) + "\">" +
+                     "<text><tspan style=\" font-size:16px;" +
+                     "font-family:'Metric';stroke-width:0.5px;fill:#f6ffd5\" x=\"0\" y=\"30\">" +
+                     what + "</tspan></text></svg>";
+    //   FDBG(mettext);
+    return mettext;
+}
+void showCCs(void)
+{
+    String header = " <svg height=\"40\" width=\"1000\">";
+    String nl = header;
+    for (int i = actpattern * maxticks, j = 0; i < (actpattern + 1) * maxticks; i++, j++)
+    {
+        if (ccpattern[i][actgrp] < 1)
+            continue;
+        String out = String(ccpattern[i][actgrp]) + "/" + String(ccval[i][actgrp]);
+        //       FDBG(SN(i) + " " + mid);
+        nl += showText(out, 80 + j * 25.5, 15, "tiny");
+    }
+    //    FDBG(header + nl + svgend);
+    webgui.setMonitor(ccidt, nl + svgend);
+    //    FDBG(nl + svgend);
+}
+void showKeys(void)
+{
+    String header = " <svg height=\"50\" width=\"1600\">";
+    String nl, nlb, nlt;
+    int startpat = actpattern / 64;
+    for (int i = startpat, f = 0; i < MAXPAT; i += beatlength, f++)
+    {
+        byte mid = checkKey(i);
+        int j = i - startpat * 64;
+  //      FDBG("showkeys "+SN(i)+SN(mid)+SN(mettrigger));
+        //        if (i == 0)
+        //            FDBG(SN(i) + " " + SN(mid) + " " + SN(triggerNote[mid]));
+        if (patfiles[f * 4][actgrp] != "")
+            nlt += showText(patfiles[f * 4][actgrp], 12 + f * 90, 10 + (f % 2) * 15, "teeny");
+        if (mid > 0)
+        {
+            if (mid != mettrigger)
+                nl += showText(midiNamesLong[mid], 15 + j * 22.5, 20, "");
+            else
+            {
+                nl += showText(midiNamesLong[mid], 15 + j * 22.5, 20, "", "red");
+                //                FDBG(nl);
+            }
+        }
+        nlb += showText(String(i / 4 + zerobase), 15 + j * 22.5, 20, "");
+    }
+    //    FDBG(header + nl + svgend);
+    webgui.setMonitor(nltidt, header + nlt + svgend);
+    webgui.setMonitor(keyidt, header + nl + svgend);
+    webgui.setMonitor(beatidt, header + nlb + svgend);
+}
+String showGrid(int which)
+{
+    String nl = showText(SN(g_scid * 2 + 1) + " " + scaleNames[g_scid] + " " + midiNamesFlat[scalebase] + " Scale", 300, 20);
     int _top = top;
     int yc = 106;
     int yt = 61;
@@ -189,7 +432,7 @@ String showgrid(int which)
     if (which == 2)
     {
         String mn = actMap;
-        nl = showtext(mn + " Mapping", 300, 40, "");
+        nl = showText(mn + " Mapping", 300, 40, "");
         len = 1150;
     }
     _top += offset - 1;
@@ -204,67 +447,59 @@ String showgrid(int which)
     //   Serial.println(nl);
     //   nl += showclef(yc);
     //    nl += showtext("&#x1D11E;", 40, yc, "#ffffff", "class=\"huge\"");
-    nl += showtext("&amp;", 30, yc);
+    nl += showText("&amp;", 30, yc);
     // nl += "<text < tspan x = \"93.083664\" y = \"140.41434\" >&amp;</tspan></text> ";
 
     return nl;
 }
-String noteline(bool scale = true)
+String noteLine(bool scale = true)
 {
     String header = " <svg height=\"200\" width=\"1200\">";
     String nl = header;
+    STACK;
 
     if (scale)
     {
-        nl += showgrid(1);
+        nl += showGrid(1);
         //   Serial.println(nl);
         Menus[SCALES]->scaleit(g_scid);
+ //       FDBG("Scale " + SN(g_scid) + SN(scalebase));
         //       if (refresh)
         //           Serial.println("refreshing");
 
-        for (int i = 0; i < nx; i++)
+        for (int i = 0; i < g_nx; i++)
         {
-            int no = ln[i] + scalebase;
+            int no = g_ln[i] + scalebase;
+  //          FDBG(SN(i) + SN(no)+SN(g_ln[i]));
             nl += showLine(left + 66 + i * 40, 60, left + 66 + i * 40, 110);
-            nl += shownote(no, left + 50 + i * 40, 124);
-            nl += showtext(midiNamesFlat[no % 12], left + 50 + i * 40 - noteflat[no % 12] * 8, 145);
+            nl += showNote(no, left + 50 + i * 40, 124);
+            if (showflat)
+                nl += showText(midiNamesFlat[no % 12], left + 50 + i * 40 - noteflat[no % 12] * 8, 145);
+            else
+                nl += showText(midiNamesSharp[no % 12], left + 50 + i * 40 - noteflat[no % 12] * 8, 145);
         }
     }
     else
     {
+        STACK;
         int numc = 12;
-        grid = nl + showgrid(2);
+        grid = nl + showGrid(2);
         int x = left + 55;
         int st = actkeyidx / numc;
         st *= numc;
         for (int i = 0; i < 20; i++)
         {
-            webgui.remove(menuId[i]);
+            webgui.remove(chordselId[i]);
             webgui.remove(transId[i]);
         }
 
-         
         short pos = -1;
-        #if 0
-        for (int s = 0; s < 12; s++)
-        {
-            String out = "{";
-            int pos = 0;
-            for (int t = 0; t < 12; t++)
-            {
-                if (iswhole[s][t] < 0)
-                    out = out + ",-1";
-                else
-                    out = out + "," + SN(pos++);
-            }
-            FDBG(out + "},");
-        }
-        #endif
+        //       FDBG(SN(st));
         for (int l = st; l < maxrepl && l < st + numc; l++)
         {
             int i = l;
             int k = keychord[i] / 100;
-            if (iswhole[scalebase][i] < 0&&progressmode)
+            if (iswhole[scalebase][i] < 0 && progressmode && g_scid == 2047)
                 continue;
             pos++;
             int b = (keychord[i] % 100 + scalebase) % 12;
@@ -272,12 +507,14 @@ String noteline(bool scale = true)
             int ycp = 118;
             int t = 0;
             int rc = replchord[pos];
-            int tr = (scalebase + transpose[pos]) % 12;
-//            FDBG(SN(scalebase) + " " + SN(i) + "? whole " + SN(mapwhole[scalebase][i]) + " -> " + SN(pos) + " " + isFlat[tr]);
-            if (progressmode&&(scalebase != 5 && scalebase != 0))
-                tr -= isFlat[tr];
-            else if (progressmode)
-                tr += isFlat[tr];
+            int tr = (scalebase + transpose[pos] + b) % 12;
+ //           if (transpose[pos]<0)
+ //               FDBG(SN(pos) + " " + SN(transpose[pos]) + " " + SN(tr) + SN(scalebase));
+            //            FDBG(SN(scalebase) + " " + SN(i) + "? whole " + SN(mapwhole[scalebase][i]) + " -> " + SN(pos) + " " + isFlat[tr]);
+            //            if (progressmode && (scalebase != 5 && scalebase != 0))
+            //                tr -= isFlat[tr];
+            //            else if (progressmode)
+            //                tr += isFlat[tr];
 
             if (cc != nullptr)
             {
@@ -290,8 +527,11 @@ String noteline(bool scale = true)
                 //               short l = midiNamesFlat[transpose[i] % 12].length();
                 //              short xp = l == 1 ? 10 : 0;
                 xtransId[i - st] = x;
-                transId[i - st] = webgui.addButtons(midiNamesFlat[tr], &onButtonRelease, x + 20, ycp + 220, "f", "smallhide");
-                menuId[i - st] = webgui.addButtons(cc->getName(), &onButtonRelease, x + 40, ycp + 220, "f", "smallhide");
+                if (showflat)
+                    transId[i - st] = webgui.addButtons(midiNamesFlat[tr], &onButtonRelease, x + 20, ycp + 230, "f", "smallhide");
+                else
+                    transId[i - st] = webgui.addButtons(midiNamesSharp[tr], &onButtonRelease, x + 20, ycp + 230, "f", "smallhide");
+                chordselId[i - st] = webgui.addButtons(cc->getName(), &onButtonRelease, x + 40, ycp + 230, "f", "smallhide");
                 //                FDBG("menuu " + SN(i - st));
             }
             x += 60;
@@ -300,6 +540,7 @@ String noteline(bool scale = true)
             x += 28;
         }
     }
+    STACK;
     nl += svgend;
     grid += svgend;
     //    Serial.println(nl);
@@ -310,7 +551,7 @@ String noteline(bool scale = true)
 extern int centerx[10], centery[10];
 
 extern short xbase;
-String connections(void)
+String showConnections(void)
 {
     String header = " <svg height=\"600\" width=\"1000\"> _def2_";
     String nl = header;
@@ -320,16 +561,16 @@ String connections(void)
         MenuMidiSet *ms = ((MenuMidiSet *)Menus[i]);
         MenuTargetSet *ts = ms->targets;
         k = i - USB_MIDI_IN;
-        for (int t = 3; t < ts->nump; t++)
+        for (int t = 2; t < ts->nump; t++)
         {
             Parameter *mpara = ts->Paras[t];
             if (SB(*mpara->value) == "f")
                 continue;
             //            FDBG(SN(t) + ": center " + SN(centerx[t - 3]) + "," + SN(centery[t - 3] - 270) + " <- " + SN(xbase + k * 100 - 260));
             short alpha = 0;
-            if (centery[t - 3] - 270 == xbase + k * 100 - 260)
+            if (centery[t - 2] - 270 == xbase + k * 100 - 260)
                 alpha = 4;
-            nl += showLine(75, xbase + k * 100 - 260 - alpha, centerx[t - 3] - 200, centery[t - 3] - 270 + alpha, 4).replace("path ", "path _blur_");
+            nl += showLine(75, xbase + k * 100 - 260 - alpha, centerx[t - 2] - 200, centery[t - 2] - 270 + alpha, 4).replace("path ", "path _blur_");
             //            DBG(SN(k) + " " + ms->items[0] + "->" + SN(t) + " " + mpara->name + " = " + SB(*mpara->value));
         }
     }

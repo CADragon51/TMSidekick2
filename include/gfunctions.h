@@ -17,7 +17,21 @@ String readline(File file)
     }
     return ret;
 }
-signed char SplitS(String what, char where, String *res, signed char nmax)
+
+byte getVoice(byte note, int pos, int grp)
+{
+    //   FDBG("note " + SN(note) + " " + voices[note]);
+    if (voices[note] == 255)
+    {
+        voices[note] = lastvoice++;
+        if (lastvoice >= MAXVOI)
+            lastvoice = 128;
+        minstr[voices[note]] = note;
+    }
+    //   FDBG(SN(voices[note]) + " " + SN(minstr[voices[note]]));
+    return voices[note];
+}
+int SplitS(String what, char where, String *res, int nmax)
 {
     int n = 0;
     int p[100];
@@ -32,70 +46,366 @@ signed char SplitS(String what, char where, String *res, signed char nmax)
         i = p[n];
         n++;
     }
-    // DBG(what+"?"+String(p[0])+" ++++++ "+what.substring(0, p[0]));
+    // FDBG(what+"?"+String(p[0])+" ++++++ "+what.substring(0, p[0]));
     res[0] = what.substring(0, p[0]);
     for (int i = 1; i < n && i < nmax; i++)
     {
         res[i] = what.substring(p[i - 1] + 1, p[i]);
-        //   DBG(res[i]);
+        // FDBG(res[i]);
     }
     return n;
 }
 void loadMap(String file)
 {
-    if (SD.exists(file.c_str()))
+    //    FDBG("file >" + file.replace(" ", "") + "<");
+    STACK;
+    lastLoadMap = file;
+
+    File frec = SD.open(file.c_str(), FILE_READ);
+    if (frec)
     {
-        lastLoadMap = file;
-        File frec = SD.open(file.c_str(), FILE_READ);
-        if (frec)
+        STACK;
+        for (int i = 0; i < 96; i++)
         {
-            for (int i = 0; i < 96; i++)
-            {
-                replchord[i] = 0;
-                transpose[i] = 0;
-                keychord[i] = 0;
-                maxrepl = 0;
-                actkeyidx = 0;
-            }
-            refresh = true;
-            String fn;
+            replchord[i] = 0;
+            transpose[i] = 0;
+            keychord[i] = 0;
+            maxrepl = 0;
+            actkeyidx = 0;
+        }
+        refresh = true;
+        String fn;
 
-            actMap= readline(frec);
-            progressmode = false;
-            if (actMap.indexOf("Progression") > -1)
-                progressmode = true;
-            FDBG(actMap + " " + SB(progressmode));
-            // read from the file until there's nothing else in it:
-            while (frec.available())
+        actMap = readline(frec);
+        progressmode = false;
+        if (actMap.indexOf("Progression") > -1)
+            progressmode = true;
+        //            FDBG(actMap + " " + SB(progressmode));
+        // read from the file until there's nothing else in it:
+        STACK;
+        while (frec.available())
+        {
+            fn = readline(frec);
+            if (fn.length() < 4)
+                continue;
+            String res[2];
+            signed char n = SplitS(fn, '=', (String *)res, 2);
+            if (n > 1)
             {
-                fn = readline(frec);
-                if (fn.length() < 4)
-                    continue;
-                String res[2];
-                signed char n = SplitS(fn, '=', (String *)res, 2);
-                if (n > 1)
+ //               FDBG(fn + " " + res[0] + " " + res[1]);
+                int ix = res[1].indexOf("+");
+                short n2 = 0;
+ //               FDBG(SN(ix));
+                if (ix > -1)
                 {
-                    DBG(fn + " " + res[0] + " " + res[0].toInt());
-                    int ix = res[1].indexOf("+");
-                    signed char n2 = 0;
-                    if (ix > -1)
-                        n2 = res[1].substring(ix).toInt();
-                    if (maxrepl < 96)
-                    {
-                        keychord[maxrepl] = res[0].toInt();
-                        replchord[maxrepl] = res[1].toInt();
-                        transpose[maxrepl] = n2;
+                    String nx = res[1].substring(ix).replace("+-", "-");
+                    n2 = nx.toInt();
+  //                  FDBG(SN(n2) + " " + res[1].substring(ix) + " < " + nx);
+                }
+                if (maxrepl < 96)
+                {
+                    keychord[maxrepl] = res[0].toInt();
+                    replchord[maxrepl] = res[1].toInt();
+                    STACK;
+                    transpose[maxrepl] = n2;
 
-                        DBG(String(maxrepl) + " " + String(keychord[maxrepl]) + "=" + String(replchord[maxrepl]) + " + " + String(n2));
-                        maxrepl++;
-                    }
+ //                   FDBG(String(maxrepl) + " " + String(keychord[maxrepl]) + "=" + String(replchord[maxrepl]) + " + " + String(transpose[maxrepl]) + " >" + SN(n2));
+                    maxrepl++;
                 }
             }
-            frec.close();
+        }
+        frec.close();
+    }
+    //    saveTMS();
+}
+String showDrum(void)
+{
+    String out = "";
+    String line = "";
+    for (int v = 0; v < MAXVOI; v++)
+    {
+        if (minstr[v] == 0)
+            continue;
+        line = SN(minstr[v]) + " ";
+        for (int p = 0; p < maxticks * MAXPAT; p++)
+        {
+            if (seqpattern[p][v][actgrp] != -1)
+                line += SN(p) + " " + SN(seqpattern[p][v][actgrp]) + " ";
+        }
+        //            FDBG(line);
+        if (line.length() > 10)
+            out += line + "~";
+    }
+
+    line = "C ";
+    for (int p = 0; p < maxticks * MAXPAT; p++)
+    {
+        if (ccpattern[p] != 0)
+            line += SN(p) + " " + SN(ccpattern[p][actgrp]) + " " + SN(ccval[p][actgrp]) + " ";
+    }
+    //            FDBG(line);
+    out += line + "~";
+
+    line = "P ";
+    for (int p = 0; p < MAXPAT; p += 4)
+    {
+        line += String(beatCount[p][actgrp]) + " ";
+        //           keyl += String(triggerNote[p]) + " ";
+    }
+    out += line + "~";
+    return out;
+}
+void saveDrum(String file)
+{
+    FDBG("saving drums to " + file + ".drm");
+    String pname = file + ".drm";
+    if (SD.exists(pname.c_str()))
+    {
+        SD.remove(pname.c_str());
+    }
+    File frec = SD.open(pname.c_str(), FILE_WRITE);
+    if (frec)
+    {
+        String keys = "K ";
+        for (int i = 0; i < 128; i++)
+        {
+            if (triggerNote[i] < 255)
+                keys += SN(i) + SN(triggerNote[i]);
+        }
+        frec.println(keys);
+        for (int g = 0; g < MAXGRP; g++)
+        {
+            String line = "";
+            frec.println("G " + SN(g));
+            for (int v = 0; v < MAXVOI; v++)
+            {
+                if (minstr[v] == 0)
+                    continue;
+                line = SN(minstr[v]) + " ";
+                for (int p = 0; p < maxticks * MAXPAT; p++)
+                {
+                    if (seqpattern[p][v][g] != -1)
+                        line += SN(p) + " " + SN(seqpattern[p][v][g]) + " ";
+                }
+                //            FDBG(line);
+                if (line.length() > 10)
+                    frec.println(line);
+            }
+            line = "C ";
+            for (int p = 0; p < maxticks * MAXPAT; p++)
+            {
+                if (ccpattern[p][g] != 0 && ccpattern[p][g] < 128)
+                    line += SN(p) + SN(ccpattern[p][g]) + SN(ccval[p][g]);
+            }
+            //            FDBG(line);
+            frec.println(line);
+
+            line = "P ";
+            for (int p = 0; p < MAXPAT; p += 4)
+            {
+                line += String(beatCount[p][g]) + " ";
+                //           keyl += String(triggerNote[p]) + " ";
+            }
+            frec.println(line);
+            line = "F ";
+            for (int p = 0; p < MAXPAT; p++)
+            {
+                if (patfiles[p][g].length() > 0)
+                    line += String(p) + " " + patfiles[p][g] + " ";
+ //               FDBG(SN(p)+line);
+            }
+            frec.println(line);
+        }
+        frec.close();
+    }
+}
+EXTMEM String res[256];
+short ires[256];
+int voice = 0;
+void cleanpat(int l)
+{
+    int from = actpattern * maxticks;
+    if (l % 48 != 0)
+        l = ((l / 48) + 1) * 48;
+    int to = from + l;
+    for (int v = 0; v < MAXVOI; v++)
+    {
+        for (int p = from; p < to; p++)
+        {
+            //               FDBG(p);
+            seqpattern[p][v][actgrp] = -1;
         }
     }
-    saveTMS();
+    FDBG("cleaned from " + SN(from) + " to " + SN(to));
 }
+String cline = "";
+void file2Drum(int cc, int grp)
+{
+    short note = ires[0];
+    //   FDBG(__CALLER__);
+    int v = 0;
+    //    FDBG("pos " + SN(ires[1]));
+    v = getVoice(note, actpattern + ires[1] / maxticks, grp);
+    if (v >= MAXVOI)
+        return;
+    //   int pos = actpattern + ires[1] / maxticks;
+
+    for (int p = 1; p < cc - 1; p += 2)
+    {
+        short ipos = ires[p];
+        short vel = ires[p + 1];
+        short as = actpattern * maxticks + ipos;
+        int pos = as / maxticks;
+        seqpattern[as][v][grp] = vel;
+        //        Serial.println(SN(v) + " " + SN(note) + " " + SN(as) + " " + SN(seqpattern[as][v]) + " ");
+        if (mvelo[v] < vel)
+            mvelo[v] = vel;
+        if (patvoicelow[pos][grp] > v)
+            patvoicelow[pos][grp] = v;
+        if (patvoicehigh[pos][grp] < v)
+            patvoicehigh[pos][grp] = v;
+    }
+    //   Serial.println();
+}
+
+void file2file(int cl, int grp)
+{
+    cline.replace("  ", " ");
+    cl = SplitS(cline, ' ', res, 255);
+    //   FDBG(cline + " " + SN(cl));
+    lastColor = 0;
+    for (int p = 0; p < cl - 2; p += 3)
+    {
+        short pos = res[p].toInt();
+        patfiles[pos][grp] = res[p + 1] + res[p + 2];
+        // patcolor[pos] = cyan[c++];
+        //       FDBG(SN(p) + SN(pos) + patfiles[pos][actgrp]);
+        patcolors[pos][grp] = coloring[lastColor % 4];
+        // c++;
+        //       FDBG(SN(p) + SN(pos) + coloring[lastColor % 4] + " " + SN(lastColor % 4));
+        lastColor++;
+    }
+    //   Serial.println();
+    return;
+}
+void file2CC(int cl, int grp)
+{
+    int p = 0;
+    while (p < cl)
+    {
+        short pos = ires[p++];
+        short cc = ires[p++];
+        short val = ires[p++];
+        short as = actpattern * maxticks + pos;
+        ccpattern[as][grp] = cc;
+        ccval[as][grp] = val;
+        //       Serial.println(SN(p)+"CC " + SN(pos) + SN(cc) + SN(val));
+        //       Serial.println("CC " + SN(as) + SN(ccpattern[as]) + SN(ccval[as]));
+    }
+    //   Serial.println();
+    return;
+}
+void file2Key(int cl)
+{
+    int p = 0;
+    while (p < cl)
+    {
+        short note = ires[p++];
+        short act = ires[p++];
+        triggerNote[note] = act;
+        int grp = act / 16;
+        int at = 4 * (act % 16);
+        acttrigger[at][grp] = note;
+        //        FDBG("key "+SN(at)+SN(grp)+SN(note));
+        //       Serial.println("CC " + SN(as) + SN(ccpattern[as]) + SN(ccval[as]));
+    }
+    //   Serial.println();
+    return;
+}
+void file2pat(int cl, int grp)
+{
+    int p = 0;
+    while (p < cl)
+    {
+        short bc = ires[p];
+        //       FDBG(SN(p) + SN(bc));
+        if (bc > 0)
+        {
+            for (int i = 0; i < bc; i++)
+            {
+                beatCount[p * beatlength + i][grp] = bc - i;
+                //                Serial.println(SN(p * beatlength + i) + "beat " + SN(i) + SN(bc - i));
+            }
+        }
+        p++;
+    }
+    //   Serial.println();
+    return;
+}
+int midi2line(int i, int rea, int &cc)
+{
+    cline = "";
+    cc = 0;
+    int n = i;
+    while (n < rea && midifile[n] >= 32)
+    {
+        cline += (char)midifile[n++];
+    }
+    // cline.replace("_073", "_07 3");
+    for (unsigned int i = 0; i < cline.length(); i++)
+    {
+        ires[cc++] = cline.substring(i, i + 6).toInt();
+        for (i++; i < cline.length(); i++)
+        {
+            if (cline.substring(i, i + 1) == " ")
+                break;
+        }
+    }
+
+    return n;
+}
+void loadDrum(String file)
+{
+
+    FDBG("loading " + file);
+    voice = -1;
+    int grp = 0;
+    if (SD.exists(file.c_str()))
+    {
+        File frec = SD.open(file.c_str(), FILE_READ);
+        int rea = frec.readBytes((char *)midifile, frec.size());
+        frec.close();
+        int cc = 0;
+        ires[cc] = 0;
+        midifile[rea++] = 10;
+        for (int i = 0; i < rea; i++)
+        {
+            char c = (char)midifile[i];
+            //           Serial.print(c, HEX);
+            if (c == 'P' || c == 'C' || c == 'G' || c == 'K' || c == 'F')
+            {
+                i += 2;
+            }
+            i = midi2line(i, rea, cc);
+            if (c == 'G')
+            {
+                grp = ires[0];
+            }
+            if (c == 'K')
+                file2Key(cc);
+            if (c == 'P')
+                file2pat(cc, grp);
+            else if (c == 'F')
+                file2file(cc, grp);
+            else if (c == 'C')
+                file2CC(cc, grp);
+            else if (cc > 2)
+                file2Drum(cc, grp);
+        }
+    }
+    actgrp = 0;
+}
+
 void print(String out, bool inv, String line)
 {
     selection = inv;
@@ -154,6 +464,543 @@ void clearToEOL()
     display.fillRect(x, display.getCursorY(), 127 - x, 7, 0);
 }
 #include "menu.h"
+
+long readlong(byte *fp)
+{
+    unsigned char c[4];
+
+    memcpy((char *)c, fp, 4);
+    return (long)((c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3]);
+}
+
+/*  READSHORT  --  Read short from a file (byte-order independent)  */
+
+short readshort(byte *fp)
+{
+    unsigned char c[2];
+
+    memcpy((char *)c, fp, 2);
+    return (short)((c[0] << 8) | c[1]);
+}
+
+/*  READVARLEN	--  Parse variable length value from MIDI file	*/
+
+long readVarLen(byte *fp)
+{
+    long value;
+    int ch;
+
+    if ((value = *fp) & 0x80)
+    {
+        value &= 0x7F;
+        do
+        {
+            value = (value << 7) | ((ch = *fp++) & 0x7F);
+        } while (ch & 0x80);
+    }
+    return value;
+}
+
+/*  High level input functions.  */
+
+/*  READMIDIFILEHEADER	--  Read file header structure.  */
+/*  MIDI command codes  */
+
+typedef enum
+{
+
+    /* Channel voice messages */
+
+    NoteOff = 0x80,
+    NoteOn = 0x90,
+    PolyphonicKeyPressure = 0xA0,
+    ControlChange = 0xB0,
+    ProgramChange = 0xC0,
+    ChannelPressure = 0xD0,
+    PitchBend = 0xE0,
+
+    /* Channel mode messages */
+
+    ChannelMode = 0xB8,
+
+    /* System messages */
+
+    SystemExclusive = 0xF0,
+    SystemCommon = 0xF0,
+    SystemExclusivePacket = 0xF7,
+    SystemRealTime = 0xF8,
+    SystemStartCurrentSequence = 0xFA,
+    SystemContinueCurrentSequence = 0xFB,
+    SystemStop = 0xFC,
+
+    /* MIDI file-only messages */
+
+    FileMetaEvent = 0xFF
+} midi_command;
+
+/*  MIDI file meta-event codes  */
+
+typedef enum
+{
+    SequenceNumberMetaEvent = 0,
+    TextMetaEvent = 1,
+    CopyrightMetaEvent = 2,
+    TrackTitleMetaEvent = 3,
+    TrackInstrumentNameMetaEvent = 4,
+    LyricMetaEvent = 5,
+    MarkerMetaEvent = 6,
+    CuePointMetaEvent = 7,
+
+    ChannelPrefixMetaEvent = 0x20,
+    PortMetaEvent = 0x21,
+    EndTrackMetaEvent = 0x2F,
+
+    SetTempoMetaEvent = 0x51,
+    SMPTEOffsetMetaEvent = 0x54,
+    TimeSignatureMetaEvent = 0x58,
+    KeySignatureMetaEvent = 0x59,
+
+    SequencerSpecificMetaEvent = 0x7F
+} midifile_meta_event;
+
+struct mhead
+{
+    char chunktype[4]; /* Chunk type: "MThd" */
+    long length;       /* Length: 6 */
+    short format;      /* File format */
+    short ntrks;       /* Number of tracks in file */
+    short division;    /* Time division */
+};
+
+/*  MIDI track header  */
+
+#define MIDI_Track_Sentinel "MTrk"
+
+struct mtrack
+{
+    char chunktype[4]; /* Chunk type: "MTrk" */
+    long length;       /* Length of track */
+};
+
+byte *readMidiFileHeader(byte *fp, struct mhead *h)
+{
+    memcpy((char *)h->chunktype, fp, sizeof h->chunktype);
+    fp += sizeof h->chunktype;
+    h->length = readlong(fp);
+    fp += 4;
+    h->format = readshort(fp);
+    fp += 2;
+    h->ntrks = readshort(fp);
+    fp += 2;
+    h->division = readshort(fp);
+    fp += 2;
+    return fp;
+}
+
+/*  READMIDITRACKHEADER  --  Read track header structure.  */
+
+byte *readMidiTrackHeader(byte *fp, struct mtrack *t)
+{
+    memcpy((char *)t->chunktype, fp, sizeof t->chunktype);
+    fp += sizeof t->chunktype;
+    t->length = readlong(fp);
+    fp += 4;
+    return fp;
+}
+long vlength(byte *trk, int &x)
+{
+    long value;
+    byte ch;
+    if ((value = trk[x++]) & 0x80)
+    {
+        value &= 0x7F;
+        //       FDBG(" x " + SN(x) + " " + SN(value));
+        do
+        {
+            ch = trk[x];
+            value = (value << 7) | (ch & 0x7F);
+            //           FDBG(" x " + SN(x) + " " + SN(ch));
+            x++;
+        } while (ch & 0x80);
+    }
+    return value;
+}
+
+void trackdrm(byte *trk, long trklen, const int ppq)
+{
+#if 0
+    int levt = 0, evt, channel, note, vel, control, value, type;
+    long len;
+
+    long abstime = 0; /* Absolute time in track */
+
+    while (trklen > 0)
+    {
+        long tlapse = vlength(&trk, &trklen);
+        abstime += tlapse;
+
+        Serial.printf("%d, %ld, ", 1, abstime);
+
+        /* Handle running status; if the next byte is a data byte,
+           reuse the last command seen in the track. */
+
+        if (*trk & 0x80)
+        {
+#ifdef XDD
+            Serial.printf(" (Trk: %02x NS: %02X : %d) ", *trk, evt, trk - strk);
+#endif
+            evt = *trk++;
+
+            /* One subtlety: we only save channel voice messages
+               for running status.  System messages and file
+               meta-events (all of which are in the 0xF0-0xFF
+               range) are not saved, as it is possible to carry a
+               running status across them.  You may have never seen
+               this done in a MIDI file, but I have. */
+
+            if ((evt & 0xF0) != 0xF0)
+            {
+                levt = evt;
+            }
+            trklen--;
+        }
+        else
+        {
+            evt = levt;
+#ifdef XDD
+            Serial.printf(" (Trk: %02x RS: %02X : %d) ", *trk, evt, trk - strk);
+#endif
+        }
+
+        channel = evt & 0xF;
+
+        /* Channel messages */
+
+        switch (evt & 0xF0)
+        {
+
+        case NoteOff: /* Note off */
+            if (trklen < 2)
+            {
+                return;
+            }
+            trklen -= 2;
+            note = *trk++;
+            vel = *trk++;
+            Serial.printf("Note_off_c, %d, %d, %d\n", channel, note, vel);
+            continue;
+
+        case NoteOn: /* Note on */
+            if (trklen < 2)
+            {
+                return;
+            }
+            trklen -= 2;
+            note = *trk++;
+            vel = *trk++;
+            /*  A note on with a velocity of 0 is actually a note
+                off.  We do not translate it to a Note_off record
+                in order to preserve the original structure of the
+                MIDI file.	*/
+            Serial.printf("Note_on_c, %d, %d, %d\n", channel, note, vel);
+            continue;
+        }
+        if (evt == FileMetaEvent)
+        {
+            if (trklen < 2)
+            {
+                return;
+            }
+            trklen -= 2;
+            type = *trk++;
+            len = vlength(&trk, &trklen);
+            trk += len;
+            trklen -= len;
+            if (type == EndTrackMetaEvent)
+                trklen = -1;
+        }
+    }
+#endif
+}
+extern void update_pat();
+byte posplus[MAXVOI];
+void loadMIDI(String pfile, String mo)
+{
+    int nx = pfile.indexOf("#");
+    String file = pfile;
+    if (nx > -1)
+        file = pfile.substring(0, nx);
+    FDBG("Loading " + file);
+    int err = SMF.load(file.c_str());
+    if (err != MD_MIDIFile::E_OK)
+    {
+        Serial.print("SMF load Error ");
+        Serial.println(err);
+        return;
+    }
+    FDBG("Loaded " + file + " " + SN(SMF.getTicksPerQuarterNote()));
+    if (mo == "y")
+        return;
+    if (SD.exists(file.c_str()))
+    {
+        struct mhead mh;
+        //        long track1;
+
+        File frec = SD.open(file.c_str(), FILE_READ);
+        frec.readBytes((char *)midifile, frec.size());
+        byte *fp = midifile;
+        frec.close();
+        //       FDBG(SN(actpattern) + SN(actpattern / beatlength));
+        patfiles[actpattern][actgrp] = pfile.replace("/midi/", "").replace(".mid", "");
+        patcolors[actpattern][actgrp] = coloring[lastColor % 4];
+        lastColor++;
+        fp = readMidiFileHeader(fp, &mh);
+        Serial.printf("Format %d MIDI file.  %d tracks, %d ticks per quarter note.\n",
+                      mh.format, mh.ntrks, mh.division);
+        struct mtrack mt;
+
+        fp = readMidiTrackHeader(fp, &mt);
+
+        Serial.println("Track length " + SN(mt.length));
+        //          trackdrm(fp, mt.length, mh.division);
+        //       FDBG(SN(fp - midifile));
+        int type;
+
+        byte event = 0;
+        int tempo = mh.division / 12;
+        short maxpc = 0;
+        byte note, vel;
+        float np = 0;
+        int i = fp - midifile;
+        //      Serial.println(mt.length);
+        // check actual length
+        for (int c = 0; c < 2; c++)
+        {
+            i = fp - midifile;
+            long abstime = 0; /* Absolute time in track */
+            while (i < mt.length + fp - midifile)
+            {
+                //             Serial.println(i);
+                //            Serial.print(SN(i)+"->");
+                long tlapse = vlength(midifile, i);
+                abstime += tlapse;
+                //            Serial.print(SN(i));
+                if (midifile[i] >= 0x80)
+                    event = midifile[i++];
+                //           Serial.print(" event ");
+                //           Serial.print(event, HEX);
+                // Serial.print(" ");
+                // Serial.print(midifile[i + 1], HEX);
+                // Serial.print(" ");
+                // Serial.print(midifile[i + 2], HEX);
+                // Serial.print(" ");
+                if (event == FileMetaEvent)
+                {
+                    type = midifile[i++];
+                    int len = vlength(midifile, i);
+                    // Serial.print(" i "+SN(i));
+                    // Serial.print(" type ");
+                    // Serial.print(" ");
+                    //                  Serial.println(type, HEX);
+                    // Serial.print(" ");
+                    // Serial.print(len);
+                    if (type == EndTrackMetaEvent) // FF 2F 00 End of Track
+                        break;
+                    i += len;
+                    //                Serial.println(" -> "+SN(i));
+                    continue;
+                }
+                event &= 0xf0;
+                //            Serial.println(" ");
+                if (event == PolyphonicKeyPressure) /* Aftertouch */
+                    i += 2;
+                if (event == ControlChange) /* Control change */
+                    i += 2;
+                if (event == ProgramChange) /* Program change */
+                    i++;
+                if (event == ChannelPressure) /* Channel pressure (aftertouch) */
+                    i++;
+                if (event == PitchBend) /* Pitch bend */
+                    i += 2;
+                if (event == SystemExclusive || event == SystemExclusivePacket)
+                {
+                    int len = vlength(midifile, i);
+                    i += len;
+                }
+                if (event == NoteOn || event == NoteOff)
+                {
+                    note = midifile[i++];
+                    vel = midifile[i++];
+                    int pos = int(abstime / tempo + 0.5);
+                    short as = actpattern * maxticks + pos;
+                    int v = getVoice(note, as / maxticks, actgrp);
+                    if (v >= MAXVOI)
+                        continue;
+                    int lim = MAXPAT * maxticks;
+                    if (as > lim)
+                        break;
+                    if (vel)
+                    {
+                        posplus[v] = 0;
+                        if (as % 2 == 1)
+                            posplus[v] = 1;
+                    }
+                    as += posplus[v];
+                    //        Serial.print(SN(as) + " " + SN(vel) + " ");
+                    if (c > 0)
+                    {
+                        //                    Serial.printf("%d %d, %d, Note_on_c, %d, %d, %d\n", i, abstime, as, v, note, vel);
+                        int pos = as / maxticks;
+                        if (patvoicelow[pos][actgrp] > v)
+                            patvoicelow[pos][actgrp] = v;
+                        if (patvoicehigh[pos][actgrp] < v)
+                            patvoicehigh[pos][actgrp] = v;
+                        seqpattern[as][v][actgrp] = vel;
+                        if (mvelo[v] < vel)
+                            mvelo[v] = vel;
+                        //                       FDBG(np);
+                        if (np < 1)
+                        {
+                            seqpattern[as + 2 * maxticks][v][actgrp] = vel;
+                            //                            Serial.printf("%d, Note_on_c, %d, %d, %d\n", as + 2 * maxticks, v, note, vel);
+                        }
+                    }
+                    else if (maxpc < pos)
+                        maxpc = pos;
+                    //               i++;
+                }
+                else
+                    Serial.println(event, HEX);
+            }
+            if (c == 0)
+            {
+                float np = float(maxpc) / 48.0 + 0.5;
+                int bcc = np;
+                if (bcc == 0)
+                    bcc = 1;
+                //             FDBG(SN(maxpc) + " " + SN(bcc) + " Loaded drm file ");
+                cleanpat(maxpc);
+                //             FDBG(__CALLER__);
+                for (int a = 0, b = 0; a < bcc * beatlength; a++, b++)
+                {
+                    beatCount[actpattern + a][actgrp] = bcc - b / beatlength;
+                    //                    FDBG(SN(maxpc) + " " + SN(actpattern + a) + " Loaded drm file " + SN(beatCount[actpattern + a][actgrp]));
+                }
+                //               FDBG(__CALLER__);
+            }
+        }
+    }
+    //    seqFile = file;
+    //   saveTMS();
+
+    update_pat();
+    playSeq = false;
+    SMF.restart();
+    FDBG(__CALLER__);
+}
+int sizeMIDI(String file, int &v)
+{
+    v = 0;
+    byte lv[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (SD.exists(file.c_str()))
+    {
+        struct mhead mh;
+        //        long track1;
+
+        File frec = SD.open(file.c_str(), FILE_READ);
+        frec.readBytes((char *)midifile, frec.size());
+        byte *fp = midifile;
+        frec.close();
+        //       FDBG(SN(actpattern) + SN(actpattern / beatlength));
+        fp = readMidiFileHeader(fp, &mh);
+        Serial.printf("Format %d MIDI file.  %d tracks, %d ticks per quarter note.\n",
+                      mh.format, mh.ntrks, mh.division);
+        struct mtrack mt;
+
+        fp = readMidiTrackHeader(fp, &mt);
+
+        Serial.println("Track length " + SN(mt.length));
+        //          trackdrm(fp, mt.length, mh.division);
+        //       FDBG(SN(fp - midifile));
+        int type;
+
+        byte event = 0;
+        int tempo = mh.division / 12;
+        short maxpc = 0;
+        byte note;
+        int i = fp - midifile;
+        //      Serial.println(mt.length);
+        // check actual length
+        i = fp - midifile;
+        long abstime = 0; /* Absolute time in track */
+        while (i < mt.length + fp - midifile)
+        {
+            //             Serial.println(i);
+            //            Serial.print(SN(i)+"->");
+            long tlapse = vlength(midifile, i);
+            abstime += tlapse;
+            //            Serial.print(SN(i));
+            if (midifile[i] >= 0x80)
+                event = midifile[i++];
+            if (event == FileMetaEvent)
+            {
+                type = midifile[i++];
+                int len = vlength(midifile, i);
+                if (type == EndTrackMetaEvent) // FF 2F 00 End of Track
+                    break;
+                i += len;
+                //                Serial.println(" -> "+SN(i));
+                continue;
+            }
+            event &= 0xf0;
+            //            Serial.println(" ");
+            if (event == PolyphonicKeyPressure) /* Aftertouch */
+                i += 2;
+            if (event == ControlChange) /* Control change */
+                i += 2;
+            if (event == ProgramChange) /* Program change */
+                i++;
+            if (event == ChannelPressure) /* Channel pressure (aftertouch) */
+                i++;
+            if (event == PitchBend) /* Pitch bend */
+                i += 2;
+            if (event == SystemExclusive || event == SystemExclusivePacket)
+            {
+                int len = vlength(midifile, i);
+                i += len;
+            }
+            if (event == NoteOn || event == NoteOff)
+            {
+                note = midifile[i++];
+                i++;
+                int pos = int(abstime / tempo + 0.5);
+                if (maxpc < pos)
+                    maxpc = pos;
+                for (int r = 0; r < 16; r++)
+                {
+                    if (lv[r] == note)
+                        break;
+                    if (lv[r] == 0)
+                    {
+                        v++;
+                        lv[r] = note;
+                        break;
+                    }
+                }
+            }
+            else
+                Serial.println(event, HEX);
+        }
+        float np = float(maxpc) / 48.0 + 0.5;
+        int bcc = np;
+        if (bcc == 0)
+            bcc = 1;
+        return bcc;
+    }
+
+    return 0;
+}
+
 void loadPRS(String file)
 {
     MenuSynth *mPara = (MenuSynth *)(Menus[SYNTHSETTINGS]);
@@ -191,27 +1038,25 @@ void saveAll(File frec)
 
     frec.write(lastMap);
     frec.write(scalebase);
-    frec.write((char *)&g_scid,4);
-    FDBG("s scale" + SN(g_scid));
+    frec.write((char *)&g_scid, 4);
     frec.write(octave);
     frec.write(semiTone);
     frec.write(s1index);
     frec.write(s2index);
     frec.write(preindex);
-    frec.write(actPre);
-    frec.write(recentPre);
+    frec.write(lastcc);
+    frec.write(lastccval);
 
     MenuSet *mes = (MenuSet *)Menus[SETTINGS];
     mes->save(frec);
     MenuSynth *mPara = (MenuSynth *)(Menus[SYNTHSETTINGS]);
     mPara->save(frec);
-    String geqnames[100];
     for (int e = 0; e < 8; e++)
     {
         MenuExtSet *mes = (MenuExtSet *)Menus[EXTSETTINGS + e];
         mes->save(frec);
     }
-#if 1
+
     for (int e = 0; e < 3; e++)
     {
         MenuMidiSet *mes = (MenuMidiSet *)Menus[MIDISETTINGS + e];
@@ -223,12 +1068,28 @@ void saveAll(File frec)
         MenuZoneSet *mes = (MenuZoneSet *)Menus[ZONESETTINGS + e];
         mes->save(frec);
     }
-#endif
-    for (int i = 0; i < 5; i++)
+
+    for (int i = 0; i < 21; i++)
         frec.write(transposeit[i]);
-    frec.println(seqFile);
+    //    FDBG("pattern " + SN(pattern) + " " + SN(mclick1) + " " + SN(mclick2));
+    frec.write((char *)&actpattern, 4);
+    frec.write(beatlength);
+    STACK;
+    // for (int i = 0; i < 128; i++)
+    // {
+    //     frec.write(triggerNote[i]);
+    // }
+    //    FDBG("trigger notes");
+    STACK;
+    frec.println(history);
+    STACK;
+    FDBG("saving: " + lastLoadMap);
+
     frec.println(lastLoadMap);
-    FDBG("saved: " + seqFile + "&" + lastLoadMap);
+    STACK;
+    frec.close();
+    FDBG("saved: " + lastLoadMap);
+    saveDrum("TMS");
     return;
 }
 
@@ -244,8 +1105,6 @@ float floatrec(File frec)
     float res = 0;
     if (frec.available())
         frec.read(&res, 4);
-    if (res == 4)
-        res = 0;
     return (res);
 }
 int intrec(File frec)
@@ -253,109 +1112,128 @@ int intrec(File frec)
     int res = 0;
     if (frec.available())
         frec.read(&res, 4);
-    if (res == 4)
-        res = 0;
     return (res);
 }
-
+extern int pwx;
 void Restore(File frec)
 {
+    FDBG("Restoring TBSidekick " + SN((int)frec.size()));
+    actpattern = 0;
+    STACK;
     lastMap = readrec(frec);
     scalebase = readrec(frec);
-//    lastScale = readrec(frec);
+    //    lastScale = readrec(frec);
     g_scid = intrec(frec);
     octave = readrec(frec);
     semiTone = readrec(frec);
     s1index = readrec(frec);
     s2index = readrec(frec);
     preindex = readrec(frec);
-    actPre = readrec(frec);
-    recentPre = readrec(frec);
-
+    lastcc = 0 * readrec(frec);
+    lastccval = 0 * readrec(frec);
     //	DBG("Restored oct " + String(octave) + " semi " + String(semiTone));
+
     MenuSet *mes = (MenuSet *)Menus[SETTINGS];
     mes->restore(frec);
+
     MenuSynth *mPara = (MenuSynth *)(Menus[SYNTHSETTINGS]);
     DBG("synth restore");
     mPara->restore(frec);
-
+    //    FDBG(__CALLER__);
     for (int e = 0; e < 8; e++)
     {
         MenuExtSet *mes = (MenuExtSet *)Menus[EXTSETTINGS + e];
         mes->restore(frec);
     }
-#if 1
+    //   FDBG(__CALLER__);
+
     for (int e = 0; e < 3; e++)
     {
         MenuMidiSet *mes = (MenuMidiSet *)Menus[MIDISETTINGS + e];
         mes->restore(frec);
     }
+    //   FDBG(__CALLER__);
 
     for (int e = 0; e < 6; e++)
     {
         MenuZoneSet *mes = (MenuZoneSet *)Menus[ZONESETTINGS + e];
         mes->restore(frec);
     }
-#endif
-    nx = 1;
-    FDBG("l scale" + SN(g_scid));
+    //   FDBG(__CALLER__);
+
+    g_nx = 1;
+    //    FDBG("l scale" + SN(g_scid));
     g_scid = g_scid << 1;
     //			g_scid = g_scid << 1;
     for (int i = 0; i < 12; i++)
     {
         int test = 1 << i;
         if ((g_scid & test) > 0)
-            ln[nx++] = i;
+            g_ln[g_nx++] = i;
         //
     }
     g_scid = g_scid >> 1;
     if (g_scid != 2047)
         Menus[SCALES]->scaleit(g_scid);
     //    DBG(String(g_scid) + " " + String(lastScale)+" "+scaleNames[g_scid]);
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 21; i++)
+    {
         transposeit[i] = readrec(frec);
-#if 1
-    if (frec.available())
-    {
-        seqFile = readline(frec);
-        lastLoadMap = readline(frec);
-
-        int err = SMF.load(seqFile.c_str());
-        if (err != MD_MIDIFile::E_OK)
-        {
-            Serial.print(seqFile + " SMF load Error ");
-            Serial.println(err);
-        }
-        else
-            playSeq = false;
+        //        FDBG("trans " + SN(i) + SN(transposeit[i]));
     }
-    if (frec.available())
-    {
-        lastLoadMap = readline(frec);
-        loadMap(lastLoadMap);
-    }
-    return;
+    STACK;
+    actpattern = intrec(frec);
+    beatlength = readrec(frec);
+    //  beatlength = 4;
+    if (actpattern < 0 || actpattern > MAXPAT)
+        actpattern = 0;
 
-    FDBG("lastseq:" + seqFile);
-    FDBG("last map:" + lastLoadMap);
-#endif
+    // for (int i = 0; i < 128; i++)
+    // {
+    //     byte t = readrec(frec);
+    //     triggerNote[i] = t;
+    //     acttrigger[t % MAXPAT][t / MAXPAT] = i;
+    //     //     Serial.print(SN(triggerNote[i]) + " "+SN(triggerNote[i+MAXPAT])+" ");
+    // }
+    //   FDBG("trigger notes");
+    //   FDBG("pattern " + SN(pattern) + " " + SN(mclick1) + " " + SN(mclick2));
+
+    //    if (frec.available())
+    String ll = frec.readString();
+    String res[3];
+    ll.replace("\r", "");
+    SplitS(ll, '\n', res, 3);
+    history = res[0];
+    //   FDBG("hist " + history);
+
+    lastLoadMap = res[1];
+ //   FDBG("lmp " + lastLoadMap);
+
+    frec.close();
     return;
 }
 void saveTMS(void)
 {
 
-    if (SD.exists("TMSidekick.ini"))
+    if (SD.exists("settings.tms"))
     {
-        SD.remove("TMSidekick.ini");
+        File frec = SD.open("settings.tms");
+        File freccp = SD.open("settings.bak", FILE_WRITE);
+        frec.read(midifile, frec.size());
+        freccp.write(midifile, frec.size());
+        frec.close();
+        freccp.close();
+        SD.remove("settings.tms");
         //    if(debug==1)DBG("ini deleted");
     }
-    File frec = SD.open("TMSidekick.ini", FILE_WRITE);
+    STACK;
+    File frec = SD.open("settings.tms", FILE_WRITE);
     if (frec)
     {
-        DBG("ini created");
+        //        FDBG("ini created");
         saveAll(frec);
+        FDBG("TBSidekick saved" + SN((int)frec.size()));
         frec.close();
-        DBG("TBSidekick saved");
     }
 }
 float fmap(float x, float in_min, float in_max, float out_min, float out_max)
@@ -433,17 +1311,14 @@ void setTrackLength(int length)
     //    Serial.print(midiptr);
     //    Serial.print("\t");
     intbyte x;
-    x.i = length + 4;
+    x.i = length - 4;
     midifile[midiptr++] = 0x00;
     midifile[midiptr++] = 0xff;
     midifile[midiptr++] = 0x2f;
     midifile[midiptr++] = 0x00;
     //    Serial.print(" 00 0f 2f 00");
     //   memcpy(midifile + 18, x.b, 4);
-    Serial.print(midifile[18], HEX);
-    Serial.print(midifile[19], HEX);
-    Serial.print(midifile[20], HEX);
-    Serial.println(midifile[21], HEX);
+    Serial.println(x.i, HEX);
     Serial.print(x.b[0], HEX);
     Serial.print(x.b[1], HEX);
     Serial.print(x.b[2], HEX);
@@ -487,9 +1362,10 @@ void writeToFile(byte eventType, byte b1, byte b2, int delta)
 {
     static byte laste = 0;
     writeVarLen(delta);
+    // FDBG(SN(laste) + " " + SN(eventType));
     if (laste != eventType)
     {
-        midifile[midiptr] = eventType - 1;
+        midifile[midiptr] = eventType;
         //       Serial.print(midifile[midiptr], HEX);
         midiptr++;
     }
@@ -503,4 +1379,101 @@ void writeToFile(byte eventType, byte b1, byte b2, int delta)
     //   Serial.print(midifile[midiptr], HEX);
     //   Serial.print(" ");
     midiptr++;
+}
+extern void showStatus(int pos);
+extern void showKeys(void);
+void playPattern(void)
+{
+    int inc = 1;
+    if (metisback)
+        inc = -1;
+    startpattern = -1;
+    patternc += inc;
+    int bl = actpattern * maxticks + beatCount[actpattern][actgrp] * beatlength * maxticks;
+
+    if (actpat[0])
+        bl = (actpattern + 1) * maxticks;
+    bool beatend = patternc >= bl;
+    if (metisback)
+        beatend = patternc < actpattern * maxticks;
+    if (beatend)
+    {
+        //       FDBG("bl " + SN(bl) + " " + SN(patternc) + " " + SN(beatCount[actpattern][actgrp]) + SB(beatend));
+        if (!actpat[0])
+        {
+            //            FDBG("met " + SN(mettrigger) + SN(triggerNote[mettrigger]));
+            digitalWrite(13, HIGH);
+            //       FDBG(midiNamesLong[mettrigger] + " " + SN(triggerNote[mettrigger]));
+            if (mettrigger && triggerNote[mettrigger] != 255)
+            {
+                actgrp = triggerNote[mettrigger] / 16;
+                actpattern = 4 * (triggerNote[mettrigger] % 16);
+                //               FDBG(SN(triggerNote[mettrigger]) + SN(actgrp) + SN(actpattern));
+                //               showStatus(actpattern);
+                showKeys();
+                //            FDBG(SN(mettrigger) + " " + SN(beatCount[actpattern] * beatlength * maxticks) + " " + SN(actpattern));
+            }
+            patternc = actpattern * maxticks;
+            //            FDBG("patternc "+SN(patternc));
+            if (metisback)
+            {
+                patternc = maxticks * (actpattern + beatCount[actpattern][actgrp] * beatlength) - 1;
+                //               FDBG(SN(mettrigger) + " " + SN(beatCount[actpattern] * beatlength * maxticks) + " " + SN(actpattern));
+            }
+            bl = patternc + beatCount[actpattern][actgrp] * beatlength * maxticks;
+        }
+        else
+        {
+            patternc = (actpattern)*maxticks;
+            if (metisback)
+                patternc = (1 + actpattern) * maxticks;
+        } //       FDBG(SN(patternc) + " " + SN(bl)+" "+SN(actpattern));
+    }
+
+    if (patternc % (beatlength * maxticks) == 0)
+    {
+        digitalWrite(13, HIGH);
+    }
+    else if (patternc % 12 == 0)
+        digitalWrite(13, LOW);
+
+    patcnt = patternc / maxticks;
+
+    if (ccpattern[patternc][actgrp] > 0)
+    {
+        byte cc = ccpattern[patternc][actgrp];
+        byte val = ccval[patternc][actgrp];
+        usbMIDI.sendControlChange(cc, val, 10, cable);
+        MIDI1.sendControlChange(cc, val, 10);
+        MIDI2.sendControlChange(cc, val, 10);
+        if (transport == RECORDING && menuState == SETTINGS)
+        {
+            if (lastEvent == 0)
+                MidiEvent::starttime = 0;
+            sequences[lastEvent++].init(0xB0, cc, val, 10);
+        }
+    }
+    int aa = 4 * (actpattern / 4);
+    for (int v = patvoicelow[aa][actgrp]; v <= patvoicehigh[aa][actgrp] && v < MAXVOI; v++)
+    {
+        short ptest = seqpattern[patternc][v][actgrp];
+        //       FDBG("voice " + SN(v) + SN(ptest));
+        if (ptest == -1)
+            continue;
+        //        FDBG(patternc);
+        byte midinr = minstr[v];
+        byte midivel = ptest;
+        {
+            //			FDBG(SN(patternc) + " " + SN(ptest));
+            usbMIDI.sendNoteOn(midinr, midivel, 10, cable);
+            MIDI1.sendNoteOn(midinr, midivel, 10);
+            MIDI2.sendNoteOn(midinr, midivel, 10);
+            if (transport == RECORDING && menuState == SETTINGS)
+            {
+                if (lastEvent == 0)
+                    MidiEvent::starttime = 0;
+                sequences[lastEvent++].init(0x90, midinr, midivel, 10);
+            }
+        }
+    }
 }

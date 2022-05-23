@@ -11,7 +11,6 @@ extern Webgui webgui; // initialize an instance of the class
 extern EthernetClient client;
 extern IPAddress server;
 extern int scidtoix(int sc);
-
 void onOptionSelect(int option, int id);
 extern Webgui webgui; // initialize an instance of the class
 extern void onSlider(float value, int id);
@@ -45,7 +44,7 @@ enum class Direction
 };
 extern void save(void);
 
-extern signed char SplitS(String what, char where, String *res, signed char nmax);
+extern int SplitS(String what, char where, String *res, int nmax);
 
 int sout = 4000;
 
@@ -53,7 +52,7 @@ extern Parameter *Paras[];
 int dpos;
 int r;
 byte fnote = 0;
-byte ln[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte g_ln[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 short mln[12] = {72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72};
 // short mlninv[12][5];
 //  short actinv[12];
@@ -61,8 +60,7 @@ short mln[12] = {72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72};
 int bnx = 0;
 int mapnx = 0;
 extern int sfx;
-String res[24];
-int nx = 0;
+int g_nx = 0;
 
 class Menu
 {
@@ -102,11 +100,12 @@ public:
 	void mainSel(int pos)
 	{
 		int para = rot_pos;
-
+#if 0
 		{
 			FDBG(String(pos) + " para =");
 			FDBG(String(para) + " MSel =" + String(paraID[para]));
 		}
+#endif
 		//    DBG(paraID[para]);
 		menuState = paraID[para];
 		//		DBG(" 162 now :");
@@ -129,6 +128,7 @@ public:
 			DBG(paraID[para]);
 			DBG("maxrepl " + String(maxrepl));
 		}
+		STACK;
 		inSel = !inSel;
 		if (rot_pos == 0)
 		{
@@ -139,7 +139,7 @@ public:
 
 			return true;
 		}
-
+		STACK;
 		if (paraID[para] > -1)
 		{
 			menuState = paraID[para];
@@ -154,8 +154,8 @@ public:
 			{
 				menuState = NEWSCALE;
 				para_change = false;
-				maxrepl = 0;
-				actkeyidx = 0;
+//				maxrepl = 0;
+//				actkeyidx = 0;
 				return true;
 			}
 			if (items[para] == "Edit Map")
@@ -173,6 +173,7 @@ public:
 				para_change = false;
 				return true;
 			}
+			STACK;
 			if (items[para] == "Target")
 			{
 				menuState = paraID[para];
@@ -187,6 +188,7 @@ public:
 		{
 			DBG(paraID[para]);
 		}
+		STACK;
 		return false;
 	}
 	int Split(String ins)
@@ -240,60 +242,60 @@ public:
 		}
 		if (para < numitems)
 		{
-			loadMap(filenames[para]);
-			displayMenu(__CALLER__);
+//			loadMap(filenames[para]);
+//			displayMenu(__CALLER__);
 		}
 	}
 	void scaleit(int _scid)
 	{
-		static int oldscid = 0;
-		static byte sb = 99;
+		static int oldscid =-100;
+		static byte sb = 199;
 		if (_scid == oldscid && scalebase == sb)
 			return;
 		oldscid = _scid;
 		sb = scalebase;
 		_scid = _scid << 1;
-		nx = 1;
-		//		DBG("scaleit");
+		g_nx = 1;
+//		FDBG("scaleit" + SN(oldscid)+SN(scalebase));
 		refresh = true;
-		inscale[sb]=sb;
-//		FDBG("In Scale: " + midiNamesFlat[(0) % 12] + " " + midiNamesFlat[(sb) % 12]);
+		inscale[sb] = sb;
+		//		FDBG("In Scale: " + midiNamesFlat[(0) % 12] + " " + midiNamesFlat[(sb) % 12]);
 		for (int i = 1; i < 12; i++)
 		{
 			int test = 1 << i;
 			inscale[(i + sb) % 12] = -1;
-			//			anx[i] = nx - 1;
+			//			anx[i] = g_nx - 1;
 			if ((_scid & test) > 0)
 			{
-				ln[nx++] = (i)%12;
-				inscale[(i+sb ) % 12] = (i+sb) % 12;
-				//				anx[i] = nx - 1;
+				g_ln[g_nx++] = (i) % 12;
+				inscale[(i + sb) % 12] = (i + sb) % 12;
+				//				anx[i] = g_nx - 1;
 			}
 		}
-//		for (int i = 0; i < 12; i++)
-//			FDBG("In Scale: " + midiNamesFlat[i] + " " + SN(inscale[i]));
+		//		for (int i = 0; i < 12; i++)
+		//			FDBG("In Scale: " + midiNamesFlat[i] + " " + SN(inscale[i]));
 
-			for (int i = 0; i < 12; i++)
+		for (int i = 0; i < 12; i++)
+		{
+			int delta = 99;
+			int di = 0;
+			if (inscale[i] != -1)
+				continue;
+			for (int j = 0; j < 12; j++)
 			{
-				int delta = 99;
-				int di = 0;
-				if(inscale[i]!=-1)
-					continue;
-				for (int j = 0; j < 12; j++)
+				if (inscale[j] == j)
 				{
-					if (inscale[j] == j)
+					int d = abs(i - j);
+					if (d < delta)
 					{
-						int d = abs(i - j);
-						if (d < delta)
-						{
-							di = j;
-							delta = d;
-						}
+						di = j;
+						delta = d;
 					}
 				}
-				inscale[i] = (di) % 12;
-//				FDBG("Scale, " + midiNamesFlat[(i) % 12] + "," + SN(delta) + "," + midiNamesFlat[inscale[i]]);
 			}
+			inscale[i] = (di) % 12;
+			//				FDBG("Scale, " + midiNamesFlat[(i) % 12] + "," + SN(delta) + "," + midiNamesFlat[inscale[i]]);
+		}
 		_scid = oldscid;
 		DBG("g_scid ");
 		DBG(_scid);
@@ -303,22 +305,22 @@ public:
 			Menus[MAPPINGS]->mapit();
 			return;
 		}
-		#if 0
+#if 0
 		int o = 0;
-		for (int i = 0, j = 0; i < 128 && o < 11 && nx < 10; i++)
+		for (int i = 0, j = 0; i < 128 && o < 11 && g_nx < 10; i++)
 		{
 			byte n = i % 12;
 			if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
 				basescale[i] = basescale[i - 1];
 			else
 			{
-				basescale[i] = ln[j] + scalebase + o * 12;
+				basescale[i] = g_ln[j] + scalebase + o * 12;
 
 				DBG(String(j) + ": " + String(i) + " ->" + String(basescale[i]));
 
-				DBG(" " + midiNamesFlat[n] + String(i / 12) + " ->" + midiNamesFlat[ln[j]] + " " + String(o));
+				DBG(" " + midiNamesFlat[n] + String(i / 12) + " ->" + midiNamesFlat[g_ln[j]] + " " + String(o));
 				j++;
-				if (j >= nx)
+				if (j >= g_nx)
 				{
 					j = 0;
 					o++;
@@ -326,12 +328,13 @@ public:
 			}
 		}
 		//		displayMenu(__CALLER__);
-		#endif
+#endif
 	}
 	void selNewMenu(void)
 	{
 		//
 		DBG("myID " + String(myID) + " " + String(rot_pos));
+		STACK;
 		switch (myID)
 		{
 
@@ -373,12 +376,12 @@ public:
 			break;
 		case MAIN:
 			mainSel(1);
+			break;
 		case EXTERNALS:
-			mainSel(rot_pos);
 		case TOUCH:
-			mainSel(rot_pos);
 		case MIDISET:
 			mainSel(rot_pos);
+			break;
 		case NEWMAP:
 			if (rot_pos == 0 && !para_change)
 				selMenu();
@@ -426,7 +429,7 @@ public:
 	{
 		para_change = false;
 		//
-		DBG("ID " + String(myID) + " items " + items[rot_pos] + "@" + String(rot_pos) + " " + items[0]);
+		FDBG("ID " + String(myID) + " items " + items[rot_pos] + "@" + String(rot_pos) + " " + items[0]);
 		dpos = 0;
 		r = 1;
 		if (myID == NEWSCALE || myID == SHOWSCALE || myID == SHOWMAP)
@@ -437,7 +440,7 @@ public:
 			if (myID == NEWSCALE)
 			{
 				bnx = 0;
-				ln[0] = 0;
+				g_ln[0] = 0;
 			}
 			return;
 		}
@@ -460,7 +463,7 @@ public:
 				}
 			}
 		}
-
+		STACK;
 		if (rot_pos == 0)
 		{
 			//       para_change = false;
@@ -486,18 +489,20 @@ public:
 			mainSel(1);
 		else
 			selNewMenu();
+		STACK;
 		//		DBG("326 now :");
 		//		DBG(menuState);
 		if (menuState > 90)
 			menuState = 0;
 		//		setoled();
 		//		setContrast();
+		STACK;
 		displayMenu(__CALLER__);
 		//     DBG(" pc " + String(para_change) + " ps " + String(para_sel) + " selected " + String(pstart + rot_pos - 1) + " " + String(pend));
 	}
 	void setmark(int ml, int i)
 	{
-		if ((myID == SCALES && scidtoix( g_scid )+3== ml) ||
+		if ((myID == SCALES && scidtoix(g_scid) + 3 == ml) ||
 			(myID == MAPPINGS && lastMap == ml) ||
 			(myID == PRESETS && preindex == ml))
 		{
@@ -636,17 +641,17 @@ public:
 			lp = 0;
 		display.setCursor(98, 0);
 
-			item = scaleNames[g_scid] + " " + midiNamesFlat[scalebase];
-			display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 0);
-			l = item.length();
-			ml = 21;
-			pad = (ml - l) / 2;
+		item = scaleNames[g_scid] + " " + midiNamesFlat[scalebase];
+		display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 0);
+		l = item.length();
+		ml = 21;
+		pad = (ml - l) / 2;
 
-			display.setCursor(pad * 6, 2);
-			//		display.writeFastHLine(0, 7, 128, 1);
-			display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
-			print(item, rot_pos == 0, __CALLER__);
-			scend = true;
+		display.setCursor(pad * 6, 2);
+		//		display.writeFastHLine(0, 7, 128, 1);
+		display.drawRect(pad * 6 - 2, 0, l * 6 + 3, 11, 1);
+		print(item, rot_pos == 0, __CALLER__);
+		scend = true;
 
 		int nl = 0;
 		firstnote = lp;
@@ -757,6 +762,7 @@ public:
 			}
 			if (rot_pos > 0 && rot_pos < 13 && psel == 2)
 			{
+				STACK;
 				transpose[actkeyidx] = rot_pos - 1;
 			}
 
@@ -832,7 +838,7 @@ public:
 		if (!force)
 			rot_test();
 		if (myID == NEWSCALE)
-			showscale("Find", ln, bnx, true);
+			showscale("Find", g_ln, bnx, true);
 		if (myID == NEWMAP)
 			showmap();
 
@@ -846,18 +852,18 @@ public:
 				return;
 			int nscid = g_scid << 1;
 			//			DBG(lastScale);
-			nx = 1;
+			g_nx = 1;
 			//			g_scid = g_scid << 1;
 			for (int i = 0; i < 12; i++)
 			{
 				int test = 1 << i;
 				if ((nscid & test) > 0)
-					ln[nx++] = i;
+					g_ln[g_nx++] = i;
 				//				DBG(String(i) + " " + String(test) + " " + String(nscid & test) + " " + String(nx));
 			}
 			//			DBG(scaleNames[scFP[lastScale]]);
 			//			printA4(SN(g_scid));
-			showscale(scaleNames[g_scid], ln, nx, true);
+			showscale(scaleNames[g_scid], g_ln, g_nx, true);
 #if 0
 			if (nx > 1)
 			{
@@ -1027,7 +1033,7 @@ public:
 	}
 	String setMenu(void)
 	{
-		//		FDBG(SN(myID) + " " + SN(omyId));
+		FDBG(__CALLER__ + " " + SN(myID));
 		//		if (myID == omyId && !force)
 		//			return "";
 		// omyId = myID;
@@ -1068,13 +1074,13 @@ public:
 				{
 					menuId[m] = webgui.addButtons(items[m], &onButtonRelease, 665 + (k++) * 60, 365, "f", "hide");
 				}
-//				else
-//					menuId[m] = webgui.addButtons(items[m], &onButtonRelease, 200, 110 + (k++) * 25, "f", "hide");
+				//				else
+				//					menuId[m] = webgui.addButtons(items[m], &onButtonRelease, 200, 110 + (k++) * 25, "f", "hide");
 			}
 		}
 	}
-	virtual void createControl(void) {}
-	virtual void checkcontrol(int type, int id, int select = 0, float value = 0,bool swval=false) {}
+	virtual void createControl(String) {}
+	virtual void checkControl(int type, int id, int select = 0, float value = 0, bool swval = false) {}
 
 	char *value;
 	static RotaryEncoder *encoder;
@@ -1107,7 +1113,7 @@ public:
 	static signed char noPanic;
 	static signed char useBPM;
 	static signed char ratdiv;
-	static byte BPM;
+	static float BPM;
 	signed char sourceNote = 0;
 	short paraID[50];
 	short parent;

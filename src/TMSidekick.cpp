@@ -12,7 +12,7 @@ void printA4(String);
 #include "base64.h"
 #include <USBHost_t36.h>
 #include <SD.h>
-#include <SPI.h>
+//#include <SPI.h>
 #include <Wire.h>
 #define CS_PIN 38
 #define RST_PIN 10
@@ -34,9 +34,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
 #include "functions.h"
 #include "webinter.h"
 extern const int16_t myWaveform[256]; // defined in myWaveform.ino
-elapsedMillis joy;
-elapsedMillis web;
-elapsedMillis midiplay;
+
 // elapsedMillis fftreset;
 signed char Menu::contrast = 1;
 short Menu::isshowing = 0;
@@ -69,7 +67,7 @@ signed char Menu::noPanic = 0;
 signed char Menu::triggerCC = 0;
 signed char Menu::ratdiv = 2;
 // const unsigned int inPort = 8888;
-unsigned char Menu::BPM = 120;
+float Menu::BPM = 120;
 byte mac[] = {
 	0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress ip(192, 168, 1, 177);
@@ -82,6 +80,9 @@ extern int fx;
 RotaryEncoder *Menu::encoder;
 RotaryEncoder *Menu::paraencoder;
 Encoder *Menu::myEnc;
+elapsedMillis joy;
+elapsedMillis web;
+elapsedMillis midiplay;
 #include "midiplay.h"
 const int buttonPin = 15;		// the number of the pushbutton pin
 const int ledPin = LED_BUILTIN; // the number of the LED pin
@@ -99,7 +100,7 @@ unsigned long debounceDelay = 50;	// the debounce time; increase if the output f
 
 void setup()
 {
-
+	STACK;
 	AudioNoInterrupts();
 	//	float a = 0.125, d = 0.125, s = 0.5, r = 0.75, M = 1024 * 32 - 1, A = 256 * a, R = 256 * r, S = M * s, D = d * 256;
 	static byte leds[6] = {36, 34, 32, 30, 28, 13};
@@ -127,11 +128,12 @@ void setup()
 	delay(200);
 	//	setoled();
 	AudioMemory(400);
+	STACK;
 	//	Udp.begin(inPort);
 	// Check for Ethernet hardware present
 	//	EthernetClass::setSocketSize(10 * 1024);
 	Ethernet.begin(mac, ip);
-
+	STACK;
 	if (Ethernet.hardwareStatus() == EthernetNoHardware)
 	{
 		FDBG("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
@@ -145,102 +147,11 @@ void setup()
 		FDBG("Ethernet cable is not connected.");
 	}
 	FDBG("Ethernet connected.");
-
-	noise1.amplitude(0);
-	if (!display.begin(SSD1306_SWITCHCAPVCC))
-	{
-		DBG(F("SSD1306 allocation failed"));
-		for (;;)
-			; // Don't proceed, loop forever
-	}
-	display.clearDisplay();
-	display.setTextColor(1, 0);
-	display.drawBitmap(0, 0, tmslogo, 128, 64, 1);
-	display.display();
-	delay(1000); // Pause for 1 seconds
-	createStruct();
-	MIDI_SER.begin(MIDI_CHANNEL_OMNI);
-	MIDI1.begin();
-	MIDI2.begin();
-	digitalWrite(led, HIGH);
-
-	//  Wire2.begin();
-#if 1
-	Serial.print("Initializing SD card...");
-	pinMode(11, OUTPUT);
-	if (!SD.begin(chipSelect))
-	{
-
-		FDBG("SD initialization failed!");
-		return;
-	}
-
-	FDBG("initialization done.");
-
-//	root = SD.open("/");
-#endif
-
-	SMF.begin(&SD.sdfs);
-	//	SMF.load("Audio.mid");
-	SMF.setMidiHandler(midiCallback);
-	SMF.setSysexHandler(sysexCallback);
-
-	FDBG("reading SD ");
-
-	FDBG("done!");
-
-	lastTime = millis();
-	createmap();
-	settrill();
-	setButtons();
-	printA4(__LINE__);
-	DBG("Button set");
-	setmidi();
-	for (int i = 0; i < 84; i++)
-		Menus[SCALES]->insertItem(scaleNames[scFP[i]]);
-	printDirectory(SD.open("/"), 0);
-
-	for (int i = 3; i < Menus[MAPPINGS]->numitems && jj1 < 100; i++)
-		opts[jj1++] = Menus[MAPPINGS]->items[i];
-	for (int i = 3; i < Menus[SCALES]->numitems && j2 < 100; i++)
-		scales[j2++] = Menus[SCALES]->items[i];
-	chordopt[j3++] = "Chord";
-	for (int c = 11; c < 63; c++)
-		chordopt[j3++] = chordName[chordIds[c]].replace(String((char)248), "&deg;").replace(String((char)171), "ø");
-
-	DBG("Trying Restore");
-
-	if (SD.exists("TMSidekick.ini"))
-	{
-		frec = SD.open("TMSidekick.ini", FILE_READ);
-		if (frec)
-		{
-
-			FDBG("loading last data ");
-			Restore(frec);
-
-			FDBG("data loaded");
-			frec.close();
-		}
-	}
-
-	//	if (lastMap > 0 && lastMap < fx)
-	//		Menus[MAPPINGS]->mapit(__CALLER__);
-	int ia = 0;
-	String ipa = "";
-	while (1)
-	{
-		ipa += String(ip[ia], DEC);
-		if (++ia >= 4)
-			break;
-		ipa += ".";
-	}
-
-	Menus[VERSION]->insertItem(ipa);
 	Udp.begin(localPort);
 
 	//	delay(5000);
 	FDBG("waiting for UDP...");
+	STACK;
 
 	if (Udp.parsePacket())
 	{
@@ -270,7 +181,106 @@ void setup()
 
 			// send a reply to the IP address and port that sent us the packet we received
 		}
+		STACK;
 	}
+	STACK;
+	noise1.amplitude(0);
+	if (!display.begin(SSD1306_SWITCHCAPVCC))
+	{
+		DBG(F("SSD1306 allocation failed"));
+		for (;;)
+			; // Don't proceed, loop forever
+	}
+	STACK;
+	display.clearDisplay();
+	display.setTextColor(1, 0);
+	//	display.drawBitmap(0, 0, tmslogo, 128, 64, 1);
+	STACK;
+	display.display();
+	//	delay(1000); // Pause for 1 seconds
+	STACK;
+	createStruct();
+	MIDI_SER.begin(MIDI_CHANNEL_OMNI);
+	MIDI1.begin();
+	MIDI2.begin();
+	digitalWrite(led, HIGH);
+
+	//  Wire2.begin();
+#if 1
+	Serial.print("Initializing SD card...");
+	pinMode(11, OUTPUT);
+	if (!SD.begin(chipSelect))
+	{
+
+		FDBG("SD initialization failed!");
+		return;
+	}
+
+	FDBG("initialization done.");
+
+//	root = SD.open("/");
+#endif
+
+	SMF.begin(&SD.sdfs);
+	//	SMF.load("Audio.mid");
+	SMF.setMidiHandler(midiCallback);
+	SMF.setSysexHandler(sysexCallback);
+
+	clearPat();
+	lastTime = millis();
+	STACK;
+	createmap();
+	settrill();
+	setButtons();
+	printA4(__LINE__);
+	STACK;
+	DBG("Button set");
+	setmidi();
+	for (int i = 0; i < 84; i++)
+		Menus[SCALES]->insertItem(scaleNames[scFP[i]]);
+	STACK;
+	// printDirectory(SD.open("/"), 0);
+	for (int i = 3; i < Menus[MAPPINGS]->numitems && jj1 < 100; i++)
+		opts[jj1++] = Menus[MAPPINGS]->items[i];
+	j3 = 0;
+	chordopt[0] = "Chord";
+	for (int c = 11; c < 63; c++)
+	{
+		chordopt[c-10] = chordName[chordIds[c]];
+		chordopt[c-10].replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+	}
+	FDBG("Trying Restore");
+	STACK;
+
+	if (SD.exists("settings.tms"))
+	{
+		frec = SD.open("settings.tms", FILE_READ);
+		if (frec)
+		{
+
+			FDBG("loading last data ");
+			Restore(frec);
+
+			FDBG("data loaded");
+			frec.close();
+		}
+	}
+	STACK;
+
+	//	if (lastMap > 0 && lastMap < fx)
+	//		Menus[MAPPINGS]->mapit(__CALLER__);
+	int ia = 0;
+	String ipa = "";
+	while (1)
+	{
+		ipa += String(ip[ia], DEC);
+		if (++ia >= 4)
+			break;
+		ipa += ".";
+	}
+
+	Menus[VERSION]->insertItem(ipa);
+
 	//	websetup();
 
 	if (Menus[SETTINGS]->procMode)
@@ -281,19 +291,30 @@ void setup()
 	}
 	menuState = MAIN;
 	display.setTextColor(1, 0);
+	STACK;
 	if (Menus[menuState])
 		Menus[menuState]->show(true, __CALLER__);
 		//	else if (debug == 1)
 		//		DBG((int)Menus[menuState]);
 
 #include "synthsetup.h"
+	STACK;
+	root = SD.open("/");
+	STACK;
+	printDirectory(root, 0);
+	STACK;
+	actpattern = 0;
+	loadDrum("TMS.drm");
+	loadMap(lastLoadMap);
 }
 #include "player.h"
-
+int to = 100;
+int to2 = 100;
+int to3 = 10;
+int loopc = to;
 void loop()
 {
-	int to = 100;
-	int to2 = 100;
+
 	// bool isplaying = false;
 #if 1
 	// bool anyactive = false;
@@ -301,16 +322,7 @@ void loop()
 	midi1.read();
 	usbMIDI.read();
 	MIDI_SER.read();
-	if (0)
-	{
-		FDBG("MIDI read:" + SP(MIDI_SER.getType()) + " " + SP(MIDI_SER.getData1()) + " " + SP(MIDI_SER.getData2()));
-		printA4(SP(MIDI_SER.getType()));
-		if (MIDI_SER.getType() == 0xc0)
-		{
-			//			usbProgamChange(usbMIDI.getChannel(), usbMIDI.getData1());
-		}
-	}
-	if (!playSeq && (transport == PLAYING||transport == REPEAT))
+	if (!playSeq && (transport == PLAYING || transport == REPEAT))
 	{
 		if (!SMF.isEOF())
 		{
@@ -322,9 +334,10 @@ void loop()
 			transport = STOPPED;
 		}
 	}
-	if (playSeq && (int)midiplay >= lastplay && (transport == PLAYING || transport == REPEAT) && lastEvent > 0)
+	if (playSeq && (int)midiplay >= to3 && (transport == PLAYING || transport == REPEAT) && lastEvent > 0)
 	{
-		lastplay = (int)midiplay + 1;
+		//		FDBG("lastplay "+SN(lastplay));
+		midiplay = midiplay - to3;
 		//		printA4(midiplay);
 		playnextMidi();
 	}
@@ -366,16 +379,18 @@ void loop()
 
 	//	if (!trigger)
 	//		fclick1.setOn(false);
-	if ((int)joy >= to)
+	loopc--;
+	#if 1
+	if (loopc<=0)
 	{
-		//		checkTrill();
+		loopc = to;
+
 		for (int e = 0; e < 9; e++)
 		{
 			MenuExtSet *mes = (MenuExtSet *)Menus[EXTSETTINGS + e];
 			mes->probe();
 		}
 		checkTrill();
-		joy = joy - to;
 		// read the state of the switch into a local variable:
 		int reading = digitalRead(buttonPin);
 
@@ -421,6 +436,7 @@ void loop()
 		if (Buttons[b])
 			Buttons[b]->loop();
 	}
+	#endif
 	//	DBG((int)Menus[menuState]);
 #endif
 	if (Menus[menuState])

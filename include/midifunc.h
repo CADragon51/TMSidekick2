@@ -9,11 +9,11 @@ MenuMidiSet *SerialMMS = (MenuMidiSet *)Menus[MIDI_IN];
 //#define SB(x) String(x ? "t" : "f")
 //#define SP(x) String((int)x, HEX)
 short lastIn = 0, lastOut = 0;
-byte scalenote(byte note, byte base)
+byte scalenote(byte note)
 {
 	short oct = (note / 12) * 12;
 	note = inscale[note % 12];
-	note += base + oct;
+	note += scalebase + oct;
 	return note % 128;
 }
 Chord *lastChord;
@@ -32,12 +32,12 @@ void endchord(void)
 	//	FDBG(SN(procMode) + " " + SB(scaled) + " " + curMMS->sourceNote);
 	int orgnote = curMMS->sourceNote;
 	int note = orgnote;
-	inData = midiNamesLong[orgnote];
+	// inData = midiNamesLong[orgnote];
 	outData = "";
 	if (scaled)
 	{
 		//		byte on = orgnote;
-		note = scalenote(orgnote, curMMS->baseNote);
+		note = scalenote(orgnote);
 		//		DBG("after scale " + String(note));
 		curMMS->sourceNote = note;
 		outData = midiNamesLong[note + semiTone + 12 * octave];
@@ -58,14 +58,17 @@ void endchord(void)
 
 void actNoteOn(signed char channel, signed char note, signed char velocity, MenuMidiSet *actMMS)
 {
+	STACK;
 	curMMS = actMMS;
 	basenote = 0;
 	byte onote = note;
 	onnotes[onote] = 0;
 	outData = "";
-	if (transport == RECORDING && lastEvent < 10000)
+	// FDBG("note on: " + SN(note) + "(" + midiNamesLong[note] + ") in ch " + String(channel) + "trans " + String(transport) + " map ch " + String(curMMS->mapCH));
+	if (transport == RECORDING && lastEvent < 100000 && menuState != SETTINGS)
 	{
-		sequences[lastEvent].recinit(0x90, note, velocity, channel, lastEvent);
+		//		FDBG(lastEvent);
+		sequences[lastEvent].init(0x90, note, velocity, channel);
 		lastEvent++;
 	} //	debug = 0;
 	byte ch = channel;
@@ -75,19 +78,52 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	bool isTB = curMMS->isTB;
 	byte procMode = Menus[SETTINGS]->procMode;
 	isMap = curMMS->mapCH == channel && (procMode == 2 || procMode == 0);
-//	isMap = (procMode == 2 || procMode == 0);
+	if (isMap && chordptr > 0 && chordnotes[chordptr - 1] == note)
+		return;
+	//	isMap = (procMode == 2 || procMode == 0);
 	scaled = (scFP[SCALES] != 2047 && procMode == 1) && !curMMS->isTB;
-//	FDBG("note on: " + SN(note) + " in ch " + String(channel) + " out ch " + String(ch) + " map ch" + String(curMMS->mapCH) + " " + SB(isMap));
+	// FDBG("note on: " + SN(note) + "(" + midiNamesLong[note] + ") in ch " + String(channel) + " out ch " + String(ch) + " map ch " + String(curMMS->mapCH) + " " + SN(chordptr));
 	actMMS->eventtype = 1; // 0: note-off,1: Note on event; 2: CC event;3: pitch
 	actMMS->sourceCH = channel;
 	actMMS->sourceNote = note;
 	actMMS->SourceCC = 0;
 	actMMS->SourceVelocity = velocity;
+	//FDBG("note on: " + SN(note) + SB(scaled) + SN(scFP[SCALES]) + SN(procMode) + SN(curMMS->isTB));
+	if (actpat[0] && !metison)
+	{
+		if (triggerNote[note] < 128)
+		{
+			int oap = 4 * (triggerNote[note] % 16);
+			int oag = (triggerNote[note] / 16);
+			acttrigger[oap][oag] = 255;
+		}
+		triggerNote[note] = actpattern / 4 + 16 * actgrp;
+		acttrigger[actpattern][actgrp] = note;
+		mettrigger = note;
+//		FDBG("set trigger " + SN(actpattern) + " " + SN(note) + " " + SN(triggerNote[note]) + SN(acttrigger[actpattern][actgrp]));
+		showStatus(actpattern);
+		showKeys();
+		return;
+	}
+	if (metison)
+	{
+		if (triggerNote[note] != 255)
+		{
+			mettrigger = note;
+			//			actpattern = 4*(triggerNote[note] % 16);
+			//			actgrp = triggerNote[note] / 16;
+			//			FDBG("mettrigger " + SN(triggerNote[note]));
+			//			if (triggerNote[note]/16==actgrp)
+			showKeys();
+			return;
+		}
+	}
 	if (procMode == 3)
 	{
-		inData = midiNamesLong[note];
-		printA4(inData);
+		MIDIinData = midiNamesLong[note];
+		printA4(MIDIinData);
 		curMMS->action(true, __CALLER__);
+		STACK;
 		return;
 	}
 	if (scaled && !isMap)
@@ -95,10 +131,10 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 		//
 		DBG("before scale " + String(note));
 		byte on = note;
-		note = scalenote(note, actMMS->baseNote);
+		note = scalenote(note);
 		onnotes[on] = -note;
 		//		printA4(unflat[on % 12] + SN(on / 12) + unflat[(note + semiTone) % 12] + SN(note / 12 + octave));
-		inData = midiNamesLong[on];
+		// inData = midiNamesLong[on];
 		outData = midiNamesLong[note + semiTone + 12 * octave];
 		if (note == 255)
 			return;
@@ -112,6 +148,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	}
 
 	curMMS->sourceNote = note;
+	#if 0
 	if (menuState == NEWSCALE && !isMap && isTB)
 	{
 		int no = note % 12;
@@ -175,15 +212,16 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 		}
 		return;
 	}
+	#endif
 	if (!Menu::isRat)
 	{
 		//		printA4(midiNamesFlat[note % 12] + String((int)note / 12));
-		inData = midiNamesLong[note];
+		MIDIinData = midiNamesLong[note];
 	}
 	else
 	{
 		//		printA4(midiNamesFlat[note % 12] + String((int)note / 12) + "*");
-		inData = midiNamesLong[note] + "*";
+		MIDIinData = midiNamesLong[note] + "*";
 		myTime = millis();
 		deltat = myTime - lastTime;
 		lastTime = myTime;
@@ -193,7 +231,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 		{
 
 			float del = deltat / n;
-			if (Menu::useBPM && Bpm>10)
+			if (Menu::useBPM && Bpm > 10)
 				del = 6000 / (n * Bpm);
 			//			DBG("n " + String(n) + " on " + String(note) + " " + String(del));
 			for (int i = 0; i < n; i++)
@@ -219,6 +257,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	myTime = millis();
 	deltat = myTime - lastTime;
 	lastTime = myTime;
+	STACK;
 
 	//
 	{
@@ -240,9 +279,11 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 		chordptr = 0;
 		id = 0;
 		isChordend = false;
+		//		FDBG(String(chordptr) + " chordptr start ");
 		_channel = channel;
 		_velocity = velocity;
 		chordnotes[0] = note;
+		STACK;
 		if (isMap)
 		{
 			actMMS->eventtype = 1; // 0: note-off,1: Note on event; 2: CC event;3: pitch
@@ -250,11 +291,14 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 			actMMS->sourceNote = note;
 			actMMS->SourceCC = 0;
 			actMMS->SourceVelocity = velocity;
-			DBG(String(chordptr) + " chordptr " + SN(actMMS->sourceNote));
-			lastTime = millis();
-			myTimer = new IntervalTimer();
-			DBG("Timer started " + SN(lastTime));
-			myTimer->begin(endchord, 20000);
+			if (curMMS->isTB != 1)
+			{
+				DBG(String(chordptr) + " chordptr " + SN(actMMS->sourceNote));
+				lastTime = millis();
+				myTimer = new IntervalTimer();
+				myTimer->begin(endchord, 20000);
+			}
+			STACK;
 		} //
 		  //			if (actMMS->mapEnabled) //&& actMMS->isTB
 		  //				myTimer.begin(endchord, 20000);
@@ -263,19 +307,22 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	chorddeltas[chordptr] = deltat;
 	chordnotes[chordptr++] = note;
 	DBG(SB(isChord) + " delta " + String(deltat));
-	DBG(String(chordptr) + " added " + String(note) + " " + SB(isMap));
+	// FDBG(__CALLER__+ " "+String(chordptr) + " added " + String(note) + " " + SB(isMap));
+	STACK;
 	if (isMap && !isTB && chordptr > 1)
 	{
 		delete myTimer;
-		processChord();
-		DBG(String(chordptr) + " chordptr end ");
+		processChord(channel);
+		//		FDBG(String(chordptr) + " chordptr end ");
 		isChordend = true;
+		STACK;
 		return;
 	}
 
 	//		noteact[note] = true;
-	if (procMode == 3 || !isMap)
+	if (!isMap)
 	{
+		STACK;
 		actMMS->eventtype = 1; // 0: note-off,1: Note on event; 2: CC event;3: pitch
 		actMMS->sourceCH = channel;
 		actMMS->sourceNote = note;
@@ -310,15 +357,19 @@ extern Chord *actChord;
 void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet *actMMS)
 {
 	//  note += val
+	STACK;
 	curMMS = actMMS;
 	byte ch = channel;
-	if (transport == RECORDING && lastEvent < 10000)
+	if (ch == curMMS->mapCH)
+		chordptr = 0;
+	if (transport == RECORDING && lastEvent < 100000 && menuState != SETTINGS)
 	{
-		sequences[lastEvent].recinit(0x80, note, velocity, channel, lastEvent);
+		sequences[lastEvent].init(0x90, note, 0, channel);
 		lastEvent++;
 	}
 	if (curMMS->outCH > 0)
 		ch = curMMS->outCH;
+	STACK;
 	_channel = ch;
 	//	bool isTB = curMMS->isTB;
 	byte byPass = Menus[SETTINGS]->procMode;
@@ -327,32 +378,27 @@ void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet 
 	DBG("onnotes: " + SN(onnotes[note]));
 	if (isMap && onnotes[note] > 0)
 	{
+		STACK;
 		isChord = false;
 		chordptr = 0;
 		isChordend = true;
 		DBG("############## " + SN(onnotes[note]));
 		chords[onnotes[note]]->noteOff();
 		onnotes[note] = 0;
+		STACK;
 		return;
 	}
 	//	if (menuState == NEWSCALE && actMMS->CH != channel && actMMS->isTB)
 	basenote = 0;
 	//	debug = 0;
+	STACK;
 	if (onnotes[note] < 0)
 	{
 		note = -onnotes[note];
 		DBG(note);
 		onnotes[note] = 0;
 	}
-
-	{
-		DBG("Note Off, ch=");
-		DBG(channel);
-		DBG(", note=");
-		DBG(note);
-		DBG(", velocity=");
-		DBG(velocity);
-	}
+	STACK;
 
 	//	if (byPass == 3)
 	{
@@ -367,9 +413,11 @@ void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet 
 			actMMS->action(false, __CALLER__);
 		}
 		//		debug = 0;
+		STACK;
 		return;
 	}
 
+	STACK;
 	//	noteact[note] = false;
 	if (chordnotes[chordptr - 1] == note)
 	{
@@ -385,13 +433,16 @@ void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet 
 	}
 	if (byPass < 2 && isMap)
 	{
-		if (bid < 2048 && actChord != nullptr)
+
+		STACK;
+		if (bid < 2048 && actChord != nullptr&&!(menuState == NEWMAP || newmapmode))
 		{
-			DBG("noff " + String(actChord->name));
+			FDBG("noff " + String(actChord->name));
 			actChord->noteOff();
 			//
 			baseNoteID[note] = 0;
 		}
+		STACK;
 	}
 	else
 	{
@@ -402,10 +453,12 @@ void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet 
 		actMMS->SourceVelocity = velocity;
 		actMMS->action(false, __CALLER__);
 	}
+	STACK;
 }
 void myNoteOff(unsigned char channel, unsigned char note, unsigned char velocity)
 {
 	incoming[1] = LOW;
+	STACK;
 	actNoteOff(channel, note, velocity, HostMMS);
 }
 void usbNoteOff(unsigned char channel, unsigned char note, unsigned char velocity)
@@ -420,14 +473,22 @@ void serNoteOff(unsigned char channel, unsigned char note, unsigned char velocit
 }
 void myAfterTouchPoly(unsigned char channel, unsigned char note, unsigned char velocity)
 {
-	if (HostMMS->mapCH != channel || HostMMS->isTB == 0)
+	STACK;
+	if (curMMS->mapCH != channel || curMMS->isTB == 0)
 		return;
-	if (!isChordend && (Menus[SETTINGS]->procMode == 0 || Menus[SETTINGS]->procMode == 1))
+	//	FDBG(SN(curMMS->mapCH) + SN(channel) + SN(curMMS->isTB) + SN(Menus[SETTINGS]->procMode) + SB(isChordend));
+	if (!isChordend && (Menus[SETTINGS]->procMode < 3))
 	{
 		//		myTimer.end();
-		processChord();
+//		FDBG("poly  " + SN(channel) + " " + SN(curMMS->mapCH) + " " + SB(isChordend));
+		STACK;
+		processChord(channel);
+//		STACK;
 		isChordend = true;
+		return;
 	}
+	return;
+	isChordend = true;
 	if (0)
 	{
 
@@ -455,6 +516,7 @@ void myAfterTouchPoly(unsigned char channel, unsigned char note, unsigned char v
 		MIDI1.sendAfterTouch(velocity, channel);
 		MIDI2.sendAfterTouch(velocity, channel);
 	}
+	//	STACK;
 }
 void actProgramChange(signed char ch, signed char program, MenuMidiSet *actMMS)
 {
@@ -468,8 +530,23 @@ void actProgramChange(signed char ch, signed char program, MenuMidiSet *actMMS)
 
 void actControlChange(signed char channel, signed char control, signed char value, MenuMidiSet *actMMS)
 {
+	if (control == 123)
+	{
+		for (v = 0; v < NUMVOICES; v++)
+		{
+			vcaenv[v]->noteOff();
+			vcfenv[v]->noteOff();
+			//        FDBG(SN(v) + " " + SB(vcfenv[v]->isSustain()));
+		}
+	}
 	if (Menus[SETTINGS]->noPanic && control == 123)
 		return;
+	if (transport == RECORDING && lastEvent < 100000)
+	{
+		//		FDBG(lastEvent);
+		sequences[lastEvent].init(0xB0, control, value, channel);
+		lastEvent++;
+	}
 	actMMS->eventtype = 2; // 0: note-off,1: Note on event; 2: CC event;3: pitch
 	actMMS->sourceCH = channel;
 	actMMS->sourceNote = 0;
@@ -531,7 +608,7 @@ void usbPitchChange(u_int8_t channel, int pitch)
 }
 void usbProgamChange(u_int8_t channel, u_int8_t program)
 {
-	FDBG("PC: " + SN(program));
+	//	FDBG("PC: " + SN(program));
 	actProgramChange(channel, program, USBMMS);
 }
 void serPitchChange(u_int8_t channel, int pitch)

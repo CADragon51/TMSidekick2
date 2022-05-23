@@ -16,7 +16,10 @@ public:
         //       DBG(__LINE__);
         if (range > 1 && form == 0)
             isAnalog = true;
-         formsize = size;
+//        FDBG(__CALLER__+name + " analog? " + SB(isAnalog));
+        formsize = size;
+        if (size == 0 && form != nullptr)
+            formsize = vend + 1;
     }
     Parameter(String pname, byte *pvalue, byte pstart, byte pend, const String *pform = nullptr, int pnum = -1, int size = 0)
     {
@@ -29,9 +32,11 @@ public:
         form = pform;
         paranum = pnum;
         isByte = true;
+        isAnalog = false;
         if (range > 1 && form == 0)
             isAnalog = true;
         formsize = size;
+     //   FDBG(__CALLER__ + name + " analog? " + SB(isAnalog)+" "+SP(form)+" "+SN(range));
     }
     Parameter(String pname, synPara *sP)
     {
@@ -76,7 +81,7 @@ public:
         tvalue = pvalue;
         fvalue = 0;
         isAnalog = true;
-        //     if(debug==1)Serial.println(name + " " + String(fvalue) + " " + String(fvend) + " " + String(isFloat ? "f" : "i"));
+ //       Serial.println(name + " " + String(fvalue) + " " + String(fvend) );
     }
 
     Parameter(const String pname, byte pparent, byte psub = 0, CALLBACK pfunction = 0)
@@ -167,7 +172,7 @@ public:
         return 0;
     }
     int mv = 0;
-    int formsize;
+    int formsize=0;
     int setLength(void)
     {
         //       DBG(name);
@@ -221,8 +226,8 @@ public:
         }
         // Serial.println(name + " format " + String(fvalue) + " " + String(ival) + " " + SP(form) + " " + SP(indirect));
         out = String(ival);
- //       if (name == "Portam. Type" || name == "Poly")
- //           return out;
+        //       if (name == "Portam. Type" || name == "Poly")
+        //           return out;
         if (!isFloat)
         {
             //				if(debug==1)Serial.println(name + " " + String((int)fvalue) + " " + String((int)form));
@@ -291,14 +296,16 @@ public:
         }
         return out;
     }
-    void setSynthVal(String caller)
+    void setSynthVal()
     {
         static float oldsa = 0;
         if (isnan(fvalue))
             fvalue = 0;
         float range = aRPara->fvalue;
         //       Serial.println(name + " " + String(paranum) + " " + String(fvalue)+" "+SN(range)+" "+caller);
-
+        if(fvalue==oldsa)
+            return;
+        oldsa = fvalue;
         AudioNoInterrupts();
         if (debug == 1)
             Serial.println(name + " no interrupt " + String(paranum) + " " + String(fvalue));
@@ -309,7 +316,27 @@ public:
             case NO_AUDIO:
                 break;
             case VCO_SHAPE:
-                vcos1[v]->begin((int)fvalue);
+                vcos1[v]->begin((int)fvalue, 0);
+                //                vcos2[v]->begin((int)fvalue);
+                //                vcos3[v]->begin((int)fvalue);
+                break;
+            case SUBSHAPE:
+                vcos1[v]->begin((int)fvalue, 2);
+                //                vcos2[v]->begin((int)fvalue);
+                //                vcos3[v]->begin((int)fvalue);
+                break;
+            case DETSHAPE:
+                vcos1[v]->begin((int)fvalue, 1);
+                //                vcos2[v]->begin((int)fvalue);
+                //                vcos3[v]->begin((int)fvalue);
+                break;
+            case SUBOCT:
+                vcos1[v]->setHarm(fvalue, 2);
+                //                vcos2[v]->begin((int)fvalue);
+                //                vcos3[v]->begin((int)fvalue);
+                break;
+            case DETOFF:
+                vcos1[v]->setHarm(fvalue, 1);
                 //                vcos2[v]->begin((int)fvalue);
                 //                vcos3[v]->begin((int)fvalue);
                 break;
@@ -328,9 +355,9 @@ public:
                 break;
             case VCF_FREQ:
                 filters[v]->frequency(fvalue);
-                if (v == 0)
-                    //    				if(debug==1)Serial.println(name+" set audio " + String(fvalue));
-                    break;
+                //            if (v == 0)
+                //    				if(debug==1)Serial.println(name+" set audio " + String(fvalue));
+                break;
             case VCF_Q:
                 filters[v]->resonance(fvalue);
                 break;
@@ -349,15 +376,15 @@ public:
                 vcaenv[v]->release(fvalue * range);
                 break;
             case VCO_MIX:
-                vcomix[v]->gain(0, 1);
-                vcomix[v]->gain(1, fvalue / 50);
-                vcos1[v]->amplitude(fvalue / 50, 1);
+//                vcomix[v]->gain(0, 1);
+                //                vcomix[v]->gain(1, fvalue / 50);
+                vcos1[v]->amplitude(fvalue / 25, 1);
                 break;
             case VCO_SUB_MIX:
-                if (debug == 1)
-                    Serial.println(name + " " + String(paranum) + " " + String(fvalue));
-                vcomix[v]->gain(2, fvalue / 50);
-                vcos1[v]->amplitude(fvalue / 50, 2);
+                //              if (debug == 1)
+                //                  Serial.println(name + " " + String(paranum) + " " + String(fvalue));
+                //               vcomix[v]->gain(2, fvalue / 50);
+                vcos1[v]->amplitude(fvalue / 25, 2);
                 break;
             case VCF_MODE:
                 //                filters[v]->moog(fvalue == 4);
@@ -391,14 +418,21 @@ public:
                 vcos1[v]->setPortamento(fvalue);
                 break;
             case PORTAMENTOTYPE:
- //               Serial.println(name + " set " + String(paranum) + " " + String(fvalue));
+                //               Serial.println(name + " set " + String(paranum) + " " + String(fvalue));
                 vcos1[v]->setTau(fvalue);
                 break;
             }
         }
+        float cg = fvalue;
         switch (paranum)
         {
-
+        case VCA_BP:
+            mixer3.gain(0, cg);
+            mixer3.gain(1, cg);
+            mixer3.gain(2, 0);
+            mixer3.gain(3, cg);
+ //           FDBG(cg);
+            break;
         case POLYMODE:
             poly = fvalue;
             //               vcos2[v]->frequencyModulation(fvalue);
@@ -454,9 +488,6 @@ public:
             mixer1.gain(2, fvalue);
             mixer1.gain(3, fvalue);
             break;
-        case VCA_BP:
-            mixer3.gain(2, fvalue);
-            break;
         case TRIGGER_1:
             //           if(debug==1)
             //           Serial.println(wavenames[s1index]);
@@ -491,20 +522,20 @@ public:
         // 			Serial.println(name + " interrupt " + String(paranum) + " " + String(fvalue));
     }
     signed char *value = nullptr;
-    short vstart;
-    short vend;
+    short vstart = 0;
+    short vend = 0;
     float fvalue = 0;
-    short sc;
+    short sc = 0;
     float *tvalue = nullptr;
-    float fvstart;
-    float fvend;
-    bool isAnalog;
+    float fvstart = 0;
+    float fvend = 0;
+    bool isAnalog = false;
     String name;
     byte parent = 0;
     bool isByte = false;
     bool isFloat = false;
-    float range;
-    int monid;
+    float range = 0;
+    int monid = 0;
     String dim;
     const String *form = nullptr;
     const short *indirect = nullptr;

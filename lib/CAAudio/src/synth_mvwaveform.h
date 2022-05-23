@@ -44,7 +44,7 @@ public:
 	AudioSynthMVWaveformModulated(void) : AudioStream(2, inputQueueArray),
 										  modulation_factor(32768),
 										  arbdata(NULL), sample(0), tone_offset(0),
-										  tone_type(WAVEFORM_SINE), modulation_type(0)
+										  modulation_type(0)
 	{
 		setPortamento(10);
 		setTau(1);
@@ -52,8 +52,8 @@ public:
 	uint32_t ftop = (4294967296.0 / AUDIO_SAMPLE_RATE_EXACT);
 	void frequency(float freqFrom, float freqTo)
 	{
-	//	Serial.println("Freq from " + String(freqFrom) + " to " + String(freqTo)+" t "+String(tau));
-		if(tau==0)
+		//	Serial.println("Freq from " + String(freqFrom) + " to " + String(freqTo)+" t "+String(tau));
+		if (tau == 0)
 		{
 			frequency(freqTo);
 			return;
@@ -62,10 +62,10 @@ public:
 		float ft[3];
 		ff[0] = freqTo;
 		ff[1] = ff[0] + detune;
-		ff[2] = ff[0] / 2;
+		ff[2] = ff[0] * harm[2];
 		ft[0] = freqFrom;
 		ft[1] = ft[0] + detune;
-		ft[2] = ft[0] / 2;
+		ft[2] = ft[0] * harm[2];
 		if (freqFrom < 0.0)
 		{
 			freqFrom = 0.0;
@@ -84,10 +84,10 @@ public:
 		}
 		ff[0] = freqFrom;
 		ff[1] = ff[0] + detune;
-		ff[2] = ff[0] / 2;
+		ff[2] = ff[0] * harm[2];
 		ft[0] = freqTo;
 		ft[1] = ft[0] + detune;
-		ft[2] = ft[0] / 2;
+		ft[2] = ft[0] * harm[2];
 		upw = freqTo - freqFrom;
 		if (freqTo == 0 || portatime == 0)
 			return;
@@ -101,7 +101,7 @@ public:
 				from_phase_increment[i] = 0x7FFE0000;
 			float df = ft[i] - ff[i];
 			df /= portatime;
-//			Serial.println(String(df,5) + " pt " + String(portatime) + " t " + String(tau));
+			//			Serial.println(String(df,5) + " pt " + String(portatime) + " t " + String(tau));
 			if (tau == 2)
 			{
 				if (freqTo > freqFrom)
@@ -111,10 +111,10 @@ public:
 				si[i] = exp(si[i]);
 				s0[i] = si[i];
 			}
-			else if (tau==1)
+			else if (tau == 1)
 			{
-				delta_phase_increment[i] = ftop*df;
-//				Serial.println(String(df, 5) + " pt " + String(portatime) + " t " + String(delta_phase_increment[i] ));
+				delta_phase_increment[i] = ftop * df;
+				//				Serial.println(String(df, 5) + " pt " + String(portatime) + " t " + String(delta_phase_increment[i] ));
 			}
 		}
 	}
@@ -131,10 +131,10 @@ public:
 		phase_increment[0] = freq * ftop;
 		if (phase_increment[0] > 0x7FFE0000u)
 			phase_increment[0] = 0x7FFE0000;
-		phase_increment[1] = (detune + freq) * ftop;
+		phase_increment[1] = (detune + harm[1] * freq) * ftop;
 		if (phase_increment[1] > 0x7FFE0000u)
 			phase_increment[1] = 0x7FFE0000;
-		phase_increment[2] = 0.5 * freq * ftop;
+		phase_increment[2] = harm[2] * freq * ftop;
 		if (phase_increment[2] > 0x7FFE0000u)
 			phase_increment[2] = 0x7FFE0000;
 		upw = 0;
@@ -146,6 +146,10 @@ public:
 	void setTau(int ptau)
 	{
 		tau = ptau;
+	}
+	int getTau(void)
+	{
+		return tau;
 	}
 	void amplitude(float n, int m)
 	{ // 0 to 1.0
@@ -173,7 +177,9 @@ public:
 	}
 	void begin(short t_type)
 	{
-		tone_type = t_type;
+		tone_type[0] = t_type;
+		tone_type[1] = t_type;
+		tone_type[2] = t_type;
 		for (int o = 0; o < 3; o++)
 		{
 			if (t_type == WAVEFORM_BANDLIMIT_SQUARE)
@@ -184,16 +190,33 @@ public:
 				band_limit_waveform[o].init_sawtooth(phase_increment[o]);
 		}
 	}
+	void begin(short t_type, byte osc)
+	{
+		tone_type[osc] = t_type;
+		if (t_type == WAVEFORM_BANDLIMIT_SQUARE)
+			band_limit_waveform[osc].init_square(phase_increment[osc]);
+//		Serial.println("set shape " + String(osc) + " " + String(t_type));
+	}
 	void setDetune(float t_detune)
 	{
 		detune = t_detune;
 	}
-	void begin(float t_amp, float t_freq, short t_type)
+	void setHarm(float t_detune, int osc)
+	{
+		if (osc == 2)
+		{
+			harm[osc] = 1.0 / t_detune;
+		}
+		if (osc == 1)
+			harm[osc] = offfreq[(int)t_detune];
+//		Serial.println("set harm " + String(osc) + " " + String(harm[osc]));
+	}
+	void begin(float t_amp, float t_freq, u_int8_t t_type)
 	{
 
 		amplitude(t_amp, 0);
 		frequency(t_freq);
-		tone_type = t_type;
+		tone_type[0] = t_type;
 	}
 	void arbitraryWaveform(const int16_t *data, float maxFreq)
 	{
@@ -235,12 +258,16 @@ private:
 	int32_t delta_phase_increment[3] = {0, 0, 0};
 	uint32_t modulation_factor;
 	int32_t magnitude[3] = {0, 0, 0};
+	float offfreq[12] = {1, 1.059463094, 1.122462048, 1.189207115, 1.25992105, 1.334839854, 1.414213562, 1.498307077, 1.587401052, 1.681792831, 1.781797436, 1.887748625};
+
 	const int16_t *arbdata;
 	//	uint32_t phasedata[3][AUDIO_BLOCK_SAMPLES];
 	int16_t sample; // for WAVEFORM_SAMPLE_HOLD
 	int16_t tone_offset;
+	float suboct = 2;
+	float detoff = 0;
 	float detune = 0;
-	uint8_t tone_type;
+	uint8_t tone_type[3];
 	uint8_t modulation_type;
 	float portatime = 0;
 	BandLimitedWaveform band_limit_waveform[3];
@@ -248,6 +275,7 @@ private:
 	float si[3];
 	int tau = 0;
 	float upw = 0;
+	float harm[3] = {1, 0.5, 0};
 };
 
 #endif

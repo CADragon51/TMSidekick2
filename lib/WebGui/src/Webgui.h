@@ -31,7 +31,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <avr/wdt.h>
-extern signed char SplitS(String what, char where, String *res, signed char nmax);
+extern int SplitS(String what, char where, String *res, int nmax);
+
 typedef void (*CallbackTypeInt)(int,int);	  // this type is a function that returns void and receives an int.
 typedef void (*CallbackTypeFloat)(float,int); //this type is a function that returns void and receives a float.
 typedef void (*CallbackTypeCharp)(String,int); //this type is a function that returns void and receives a char*.
@@ -59,7 +60,7 @@ class Webgui{
 		int addButtons(String name, unsigned char numbuttons, String *buttons, CallbackTypeInt fnActionClick, int x, int y, String title, String classname = "control");
 		int addButtons(String name, CallbackTypeInt fnActionClick, int x, int y, String title, String classname = "control");
 		int addSwitches(String name, unsigned char numswitches, bool *switches, CallbackTypeBoolp fnAction, int x, int y, String title, String classname = "control");
-		int addOptions(String name, unsigned char numoptions, String *options, CallbackTypeInt fnAction, int x, int y, int selection, String title, String classname = "control");
+		int addOptions(String name, int numoptions, String *options, CallbackTypeInt fnAction, int x, int y, int selection, String title, String classname = "control");
 		int addInputAnalog(String name, float minvalue, float maxvalue, float defaultvalue, CallbackTypeFloat fnAction, int x, int y, String title , String classname = "control");
 		int addInputString(String name, CallbackTypeCharp fnAction, int x, int y, String title, String classname = "control",String value="");
 		int addLED(String name, int x, int y, String title, String classname = "monitor");

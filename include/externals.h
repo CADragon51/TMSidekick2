@@ -81,6 +81,7 @@ public:
 		byte notefrom = extNote;
 		byte noteto = toextNote;
 		//		Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String((int)extPing) + " Switch " + String((int)myButton));
+//		STACK;
 		if (Analog)
 		{
 
@@ -91,6 +92,7 @@ public:
 			}
 			if (Analog->hasChanged())
 			{
+				STACK;
 				rawvalue = Analog->getValue();
 				eventtype = 2;
 				if (rawvalue < emin)
@@ -98,10 +100,12 @@ public:
 				if (rawvalue > emax)
 					emax = rawvalue;
 				byte sNote = imap(rawvalue, emin, emax, notefrom, noteto);
+				byte mapvalue = imap(rawvalue, emin, emax,0, 127);
 				//					if (aPin == A15)
 				//							if(debug==1)Serial.println(String(myID) + " Probe " + String(extNote) + " Analog " +  String(rawvalue));
 				//					if(debug==1)Serial.println(targets->SynthPara);
-				targets->action(on, eventtype, extCh, sNote, vel[velocity], extCC, __CALLER__, rawvalue, mapvalue);
+				targets->action(on, eventtype, extCh, sNote, mapvalue, extCC, __CALLER__, rawvalue, mapvalue);
+//				STACK;
 				eventtype = 4;
 			}
 		}
@@ -129,7 +133,7 @@ public:
 		}
 		if (myButton)
 		{
-			bool res = myButton->check();
+			bool res = myButton->checkButton();
 			if (myButton->hasChanged)
 			{
 				//				FDBG(SB(res));
@@ -257,6 +261,7 @@ public:
 		static float ov = 0;
 		if (fabs(ov - rawvalue)<10)
 			return;
+//		STACK;
 		ov = rawvalue;
 		if (targets->SynthPara)
 		{
@@ -280,7 +285,7 @@ public:
 				//				MenuPara::setSynthVal(targets->SynthPara);
 				//				targets->action(on, eventtype, extCh, 0, 0, extCC, __CALLER__, mapvalue);
 				if (!targets->SYNTH)
-					SynthPara->setSynthVal(__CALLER__);
+					SynthPara->setSynthVal();
 				else
 				{
 					targets->action(true, 2, extCh, extNote, fmap(rawvalue, emin, emax, 0, 128), SynthPara->paranum, 0, rawvalue);
@@ -292,6 +297,7 @@ public:
 		if (eventtype != 4)
 		{
 			//			if(debug==1)Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String(extNote) + " Switch " + String(rawvalue));
+//			STACK;
 			targets->action(on, eventtype, extCh, extNote, vel[velocity], extCC, __CALLER__, mapvalue);
 		}
 	}

@@ -147,8 +147,9 @@ scaleNames[870] = "Ukrainian Dorian ";
 scaleNames[427] = "Ultr. Locrian bb3";
 scaleNames[461] = "Ultraphrygian";
 scaleNames[682] = "Whole tone ";
+STACK;
 byte subwindows[7] = {MENU_VCFADSR, MENU_VCO, MENU_VCF, MENU_VCA, MENU_KEYS, MENU_SAMPLE, MENU_FILES};
-byte sublength[7] = {9, 12, 12, 8, 3, 5, 1};
+byte sublength[7] = {9, 16, 12, 8, 3, 5, 1};
 int lastn = 0;
 for (int i = 0; i < 7; i++)
 {
@@ -162,12 +163,42 @@ for (int i = 0; i < 7; i++)
     else
         pmshape[m] = 0;
 }
-j2 = 0;
-for (int i = 0; i < 84; i++)
+// j2 = 0;
+// for (int i = 0; i < 84; i++)
+// {
+//     scales[i] = scaleNames[scFP[i]];
+//     FDBG("\""+scales[i] + "\",");
+//     j2 = i;
+// }
+for (int i = 0; i < 128; i++)
 {
-    scales[j2++] = scaleNames[scFP[i]];
+    counts[i] = String(i);
+    triggerNote[i] = 255;
+    voices[i] = 255;
 }
-
+for (int i = 0; i < MAXVOI; i++)
+    mvelo[i] = 100;
+for (int g = 0; g < MAXGRP; g++)
+{
+    for (int i = 0; i < MAXPAT; i++)
+    {
+        beatCount[i][g] = 0;
+        patvoicelow[i][g] = 128;
+        patvoicehigh[i][g] = 0;
+        acttrigger[i][g] = 128;
+    }
+    for (int i = 0; i < MAXPAT * maxticks; i++)
+    {
+        ccpattern[i][g] = 0;
+        ccval[i][g] = 0;
+        for (int v = 0; v < MAXVOI; v++)
+            seqpattern[i][v][g] = 0;
+    }
+}
+for (int i = 0; i < maxticks; i++)
+    seqswitch[i] = false;
+patset = true;
+STACK;
 synparas[NO_AUDIO] = new synPara(NO_AUDIO, 1.00, "", false);
 synparas[AM_DEPTH] = new synPara(AM_DEPTH, 1.00, "", true);
 synparas[AM_RATE] = new synPara(AM_RATE, 10.00, "Hz", true);
@@ -189,7 +220,6 @@ synparas[VCA_DECAY] = new synPara(VCA_DECAY, 1, "ms", true);
 synparas[VCA_RELEASE] = new synPara(VCA_RELEASE, 1, "ms", true);
 synparas[VCA_SUSTAIN] = new synPara(VCA_SUSTAIN, 1.00, "", true);
 synparas[ADSR_MAG] = new synPara(ADSR_MAG, 2000, "", true, 1.0);
-
 synparas[VCF_ATTACK] = new synPara(VCF_ATTACK, 1, "ms", true);
 synparas[VCF_DECAY] = new synPara(VCF_DECAY, 1, "ms", true);
 synparas[VCF_RELEASE] = new synPara(VCF_RELEASE, 1, "ms", true);
@@ -202,7 +232,6 @@ synparas[VCF_MODE] = new synPara(VCF_MODE, 3.00, "", false);
 synparas[VCF_Q] = new synPara(VCF_Q, 8.00, "", true);
 synparas[VCF_DEPTH] = new synPara(VCF_DEPTH, 1.00, "", true);
 synparas[VCF_RATE] = new synPara(VCF_RATE, 10.00, "Hz", true);
-
 synparas[VCO_AMP] = new synPara(VCO_AMP, 10.00, "", true);
 synparas[VCO_DETUNE] = new synPara(VCO_DETUNE, 10.00, "Hz", true);
 synparas[VCO_FREQ] = new synPara(VCO_FREQ, 109.00, "Hz", true);
@@ -210,8 +239,18 @@ synparas[VCO_MIX] = new synPara(VCO_MIX, 10.00, "", true);
 synparas[VCO_FMRANGE] = new synPara(VCO_FMRANGE, 12.00, "", true);
 synparas[VCO_RANGE] = new synPara(VCO_RANGE, 6.00, "", false);
 synparas[VCO_SHAPE] = new synPara(VCO_SHAPE, 12.00, "", false);
-synparas[VCO_SUB_MIX] = new synPara(VCO_SUB_MIX, 10.00, "", true);
+synparas[VCO_SUB_MIX] = new synPara(VCO_SUB_MIX, 10.0, "", true);
 synparas[NOISE] = new synPara(NOISE, 10.00, "", true);
+synparas[SUBSHAPE] = new synPara(SUBSHAPE, 12.00, "", false);
+synparas[SUBOCT] = new synPara(SUBOCT, 5, "", true);
+synparas[DETSHAPE] = new synPara(DETSHAPE, 12.00, "", false);
+synparas[DETOFF] = new synPara(DETOFF, 12, "", true);
 synparas[PORTAMENTOTIME] = new synPara(PORTAMENTOTIME, 1000, "ms", true);
 synparas[PORTAMENTOTYPE] = new synPara(PORTAMENTOTYPE, 2, "", false);
 synparas[POLYMODE] = new synPara(POLYMODE, 1, "", false);
+STACK;
+for (int p = 0; p < NUMSYNTH && 0; p++)
+{
+    FDBG(synparas[p]->para);
+    //			DBG(String(p) + " " + String((int)Paras[p]));
+}

@@ -2,8 +2,8 @@
 #define CHORD_H
 #include "Adafruit_SSD1306.h"
 extern Adafruit_SSD1306 display;
-extern String showtext(String text, int x, int y, String tclass);
-extern String shownote(byte n, float basex, float basey);
+extern String showText(String text, int x, int y, String tclass, String fill);
+extern String showNote(byte n, float basex, float basey);
 
 class Chord
 {
@@ -11,6 +11,7 @@ public:
   Chord(short nscid, int iscid, byte inv, int cindex)
   {
     num = 1;
+    _mscid = iscid;
     _scid = nscid;
     note[0] = 0;
     invid = inv;
@@ -20,13 +21,26 @@ public:
       if ((nscid & test) > 0)
       {
         note[num++] = i + 1;
+        nn += SN(i + 1) + " ";
         //       Serial.println(String(_scid) + " note " + String(note[num - 1]));
       }
       //				Serial.println(String(i) + " " + String(test) + " " + String(scid & test) + " " + String(nx));
     }
     name = chordName[iscid];
     _cindex = cindex;
+    inverseID[0] = _scid;
+    //  Serial.println(String(_scid) + " " + String(0) + " " + String(0) + " \"" + name);
 
+    for (int i = 1; i < num; i++)
+    {
+      inverseID[i] = doinverse(i);
+      //     if (_scid == 72)
+      //       Serial.println("##### " + String(_scid) + " inv " + String(i) + " " + String(inverseID[i]));
+      //     if (cname[inverseID[i]] == "")
+      //     {
+      //       cname[inverseID[i]] = name;
+      //     }
+    }
     // Serial.println(String(nscid) + " " + String(iscid) + " " + String(inv) + " \"" + name + " " + String(_cindex));
     //    inverseID[0] = _scid;
   }
@@ -34,6 +48,7 @@ public:
   {
     num = 1;
     _scid = nscid;
+    _mscid = nscid;
     _cindex = cindex;
     note[0] = 0;
     for (int i = 0; i < 12; i++)
@@ -42,6 +57,7 @@ public:
       if ((nscid & test) > 0)
       {
         note[num++] = i + 1;
+        nn += SN(i + 1) + " ";
         //       Serial.println(String(_scid) + " note " + String(note[num - 1]));
       }
       //				Serial.println(String(i) + " " + String(test) + " " + String(scid & test) + " " + String(nx));
@@ -53,7 +69,8 @@ public:
     for (int i = 1; i < num; i++)
     {
       inverseID[i] = doinverse(i);
-      //     Serial.println(String(_scid) + " inv " + String(i)+ " "+String(inverseID[i]));
+      //     if (_scid==72)
+      //       Serial.println("##### "+String(_scid) + " inv " + String(i) + " " + String(inverseID[i]));
       //     if (cname[inverseID[i]] == "")
       //     {
       //       cname[inverseID[i]] = name;
@@ -99,18 +116,33 @@ public:
     for (int i = 0; i < num; i++)
     {
       int no = note[i] + nb;
-      nl += shownote(no % 12, x, y);
+//      if(button)
+//        FDBG(getName()+SN(i)+midiNamesLong[no]);
+      nl += showNote(no, x, y + 6);
     }
-    String pn = midiNamesFlat[nb] +
-                name.replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+    //   String iname = "";
+    //   if(invid>0)
+    //     iname = "/" + midiNamesFlat[invid] + " ";
+    //   String pn = midiNamesFlat[nb] +name.replace(String((char)248), "&deg;").replace(String((char)171), "ø")+iname;
     if (!button)
-      nl += showtext(pn, x-10, y + 15, "small");
-     //  Serial.println(nl);
+      nl += showText(midiNamesFlat[nb] + getName(), x - 10, y + 21, "small", "white");
+    //  Serial.println(nl);
     return nl;
   }
-  String getName( )
+  String getName(int inv = 0)
   {
-    String pn =name.replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+    String pn = name;
+    pn.replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+    byte cninv = note[invid];
+    if (inv > 0)
+      cninv = chordnotes[inv] % 12;
+    if (cninv > 0)
+    {
+      if (showflat)
+        pn = pn + "/" + midiNamesFlat[cninv];
+      else
+        pn = pn + "/" + midiNamesSharp[cninv];
+    }
     return pn;
   }
   int doinverse(int inverse)
@@ -128,13 +160,16 @@ public:
   byte note[16];
   byte num = 0;
   byte basenote = 0;
+  byte channel = 0;
   int delta[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   byte ypos[12] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
   String name;
   int inverseID[6];
   int _scid;
+  int _mscid;
   byte invid = 0;
   short _cindex = 0;
+  String nn = "";
 };
 
 #endif

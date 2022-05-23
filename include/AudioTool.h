@@ -1,7 +1,7 @@
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <SD.h>
+//#include <SD.h>
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
@@ -73,7 +73,8 @@ AudioEffectMultiply multiply6;               //xy=2772,1361
 AudioMixer4 mixer8;                          //xy=2967.4285278320312,1215.4285736083984
 AudioMixer4 mixer12;                         //xy=2979.285614013672,1376.2855892181396
 AudioMixer4 mixer3;                          //xy=3151,1126
-//AudioOutputSPDIF3 spdif3_1;
+//AudioEffectDynamics dynamic1;
+AudioOutputSPDIF3 spdif3_1;
 AudioOutputI2S2 i2s2_1;                      // xy=3334.00008392334,1128.428451538086
 AudioOutputUSB usb1;                         //xy=3345.142723083496,1194.4286613464355
 AudioConnection patchCord1(noise1, 0, mixer2, 3);
@@ -99,7 +100,6 @@ AudioConnection patchCord20(waveformMod9, 0, mixer20, 0);
 AudioConnection patchCord21(waveformMod7, 0, mixer17, 0);
 AudioConnection patchCord22(waveformMod5, 0, mixer13, 0);
 AudioConnection patchCord23(waveformMod3, 0, mixer9, 0);
-AudioConnection patchCord24(waveformMod3, 0, mixer9, 0);
 AudioConnection patchCord25(waveformMod1, 0, mixer2, 0);
 AudioConnection patchCord26(dc3, envelope2);
 AudioConnection patchCord27(dc3, envelope3);
@@ -200,6 +200,8 @@ AudioConnection patchCord121(mixer8, 0, mixer3, 1);
 AudioConnection patchCord122(mixer12, 0, mixer3, 3);
 AudioConnection patchCord123(mixer3, 0, i2s2_1, 0);
 AudioConnection patchCord124(mixer3, 0, i2s2_1, 1);
+AudioConnection patchCord1231(mixer3, 0, spdif3_1, 0);
+AudioConnection patchCord1241(mixer3, 0, spdif3_1, 1);
 AudioConnection patchCord125(mixer3, 0, usb1, 0);
 AudioConnection patchCord126(mixer3, 0, usb1, 1);
 // GUItool: end automatically generated code

@@ -91,7 +91,8 @@ public:
 				//			DBGf("values %f %d %d %f %f %f\n", rawvalue, emin, emax, aPara->fvstart, aPara->fvend, mapvalue);
 				//			DBG("audio "+ String(mapvalue) + " " + mPara->Paras[pn]->name);
 				//			MenuPara::setSynthVal(targets->SynthPara);
-				targets->action(on, 1, channel, 0, 0, 0, __CALLER__, mapvalue);
+				aPara->setSynthVal();
+				//				targets->action(on, 1, channel, 0, 0, 0, __CALLER__, mapvalue);
 			}
 			return;
 		}

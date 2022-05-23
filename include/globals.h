@@ -11,22 +11,27 @@ class Chord;
 class Menu;
 class Parameter;
 int debug = 0;
-#if 1
-#define DBG(x)      \
-	if (debug == 1) \
-	Serial.println(x)
-#define FDBG(x) \
-	Serial.println(x)
-#else
-#define DBG(x)
-#define FDBG(x)
-#endif
-#define SN(x) String(x)
+bool showflat = true;
+#define SN(x) String(x)+" "
 #define SB(x) String(x ? "t" : "f")
 #define SP(x) String((int)x, HEX)
 #define __NAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 #define __CALLER__ String(String(__LINE__) + " " + __NAME__)
-String inData;
+#define DBG(x)
+String history = "help";
+byte voices[128];
+// #define DBG(x)     
+// 	if (debug == 1) 
+// 	Serial.println(x)
+#define FDBG(x) \
+	Serial.println(x)
+
+//#define FDBG(x)
+
+#define FSTACK Serial.println(__CALLER__)
+//#define STACK Serial.println(__CALLER__)
+#define STACK
+String MIDIinData;
 String outData;
 class synPara
 {
@@ -116,6 +121,10 @@ enum synparatype
 	VCO_SHAPE,
 	VCO_SUB_MIX,
 	NOISE,
+	SUBSHAPE,
+	SUBOCT,
+	DETSHAPE,
+	DETOFF,
 	NUMSYNTH,
 	FILE_OPEN,
 	FILE_SAVE,
@@ -125,13 +134,172 @@ short pmstart[100];
 short pmend[100];
 short pmshape[100];
 int lastXPos = 0;
-short guiid[400];
-byte id2para[400];
-byte menId[400];
+EXTMEM short guiid[1400];
+EXTMEM byte id2para[1400];
+EXTMEM byte menId[1400];
 int maxg = 0;
-byte transposeit[6] = {1, 1, 1, 1, 1, 1};
+EXTMEM String perc[127];
+#if 0
+EXTMEM String perc[127] = {
+	"[Racktom 1]",
+	"[Racktom 2]",
+	"[Racktom 2]",
+	"[Floortom 1]",
+	"[Floortom 1]",
+	"[Snare]",
+	"hatsTrig",
+	"hatsTipTrig",
+	"hatsTipTrig",
+	"Closed Pedal",
+	"Closed",
+	"Open 1",
+	"Open 1",
+	"Open 2",
+	"Open 2",
+	"Open 3",
+	"Open 3",
+	"hatsTrig",
+	"hatsTipTrig",
+	"hatsTipTrig",
+	"Closed Pedal",
+	"Closed",
+	"Open Pedal",
+	"Open 1",
+	"Open 2",
+	"Open 3",
+	"[Crash A]",
+	"[Crash A]",
+	"[Crash A]",
+	"[Crash B]",
+	"[Crash B]",
+	"Metronome Click",
+	"Metronome Bell",
+	"Acoustic Bass Drum",
+	"Bass Drum 1",
+	"Side Stick",
+	"Acoustic Snare",
+	"Hand Clap",
+	"Electric Snare",
+	"Low Floor Tom",
+	"Closed Hi-Hat",
+	"High Floor Tom",
+	"Pedal Hi-Hat",
+	"Low Tom",
+	"Open Hi-Hat",
+	"Low-Mid Tom",
+	"Hi-Mid Tom",
+	"Crash Cymbal 1",
+	"High Tom",
+	"Ride Cymbal 1",
+	"Chinese Cymbal",
+	"Ride Bell",
+	"Tambourine f#",
+	"Splash Cymbal",
+	"Cowbell ",
+	"Crash Cymbal 2",
+	"Vibraslap x",
+	"Ride Cymbal 2",
+	"Hi Bongo",
+	"Low Bongo",
+	"Mute Hi Conga",
+	"Open Hi Conga",
+	"Low Conga",
+	"High Timbale",
+	"Low Timbale",
+	"High Agogo",
+	"Low Agogo",
+	"Cabasa ",
+	"Maracas ",
+	"Short Whistle",
+	"Long Whistle",
+	"Short Guiro",
+	"Long Guiro",
+	"Claves ",
+	"Hi Wood Block",
+	"Low Wood Block",
+	"Mute Cuica",
+	"Open Cuica",
+	"Mute Triangle",
+	"Open Triangle",
+	"Flams",
+	"Crescendo",
+	"Left Brush Hit",
+	"Right Brush Hit",
+	"Right Brushed",
+	"Left Brushed",
+	"Slap Crescendo",
+	"Right Muted",
+	"Right Open",
+	"Right BassTone",
+	"Left Open Slap",
+	"Right Open Slap",
+	"Left Closed Slap",
+	"Right Closed Slap",
+	"Left Heel",
+	"Right Heel",
+	"Crescendo",
+	"Flams",
+	"Slap Flams",
+	"FX",
+	"c2Left Open",
+	"c2Right Open",
+	"c2Left Muted",
+	"c2Right Muted",
+	"c2Left BassTone",
+	"c2Right BassTone",
+	"c2Crescendo",
+	"c2Flams",
+	"c2FX",
+	"c2Left Open",
+	"c2Right Open",
+	"c2Left Muted",
+	"c2Right Muted",
+	"c2Left BassTone",
+	"c2Right BassTone",
+	"c2Crescendo",
+	"c2Flams",
+	"[Bells] Crescendo",
+	"[Cymbal 1] *Crescendo",
+	"[Waterfall] Crescendo",
+	"[Cymbal 2] Crescendo",
+	"[Crickets] Crescendo",
+	"[Shekere] Beat",
+	"[Shekere] Off Beat",
+	"[Shekere] On Beat",
+	"[Shekere] Shakings",
+};
+#endif
+	byte transposeit[32] = {
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+};
 bool progressmode = false;
-static short iswhole[12][12] = {
+bool newmapmode = false;
+bool originalmode = false;
+String mapComment;
+const short iswhole[12][12] PROGMEM = {
 	{-1, 2, -3, 4, 5, -6, 7, -8, 9, -10, 11},
 	{1, -2, 3, 4, -5, 6, -7, 8, -9, 10, 11},
 	{-1, 2, 3, -4, 5, -6, 7, -8, 9, 10, -11},
@@ -145,8 +313,8 @@ static short iswhole[12][12] = {
 	{1, 2, -3, 4, -5, 6, 7, -8, 9, -10, 11},
 	{1, -2, 3, -4, 5, 6, -7, 8, -9, 10, -11}};
 
-static short isFlat[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
-static short mapwhole[12][12] = {
+const short isFlat[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
+const short mapwhole[12][12] PROGMEM = {
 	{-1, 0, -1, 1, 2, -1, 3, -1, 4, -1, 5, 6},
 	{0, -1, 1, 2, -1, 3, -1, 4, -1, 5, 6, 7},
 	{-1, 0, 1, -1, 2, -1, 3, -1, 4, 5, -1, 6},
@@ -164,6 +332,7 @@ static short mapwhole[12][12] = {
 #define CHECKBOX 2
 #define SLIDER 3
 #define OPTION 4
+
 enum
 {
 	submod = FILE_SAVE_NEW + 1,
@@ -181,7 +350,7 @@ enum
 	subFile,
 	subKeys
 };
-byte id2synth[] = {
+const byte id2synth[] PROGMEM = {
 	ADSR_MAG,
 	VCF_ATTACK,
 	VCF_DECAY,
@@ -193,10 +362,14 @@ byte id2synth[] = {
 	VCA_RELEASE, // 7
 	VCO_MIX,	 // 8
 	VCO_DETUNE,
+	DETOFF,
 	VCO_SUB_MIX,
+	SUBOCT,
 	VCO_AMP,
 	NOISE, // 13
+	SUBSHAPE,
 	VCO_SHAPE,
+	DETSHAPE,
 	FM_DEPTH, // 14
 	FM_RATE,
 	FM_SHAPE,
@@ -310,8 +483,11 @@ EXTMEM String synthParas[] = {
 	"VCO Range",
 	"VCO Shape",
 	"VCO Sub Mix",
-	"Noise"
-};
+	"Noise",
+	"Sub Shape",
+	"Sub Octave",
+	"Det Shape",
+	"Det Offset"};
 const String subMenus[NUM_SUBMENUS] = {"Modules", "Sample", "VCO", "VCF", "VCA", "FM", "PM", "FFM", "ADSR", "AM", "ADSR", "Wave", "Presets", "Portamento"};
 const signed char subParent[NUM_SUBMENUS] = {0, submod, submod, submod, submod, subVCO, subVCO, submod, submod, subVCA, subVCA, subVCO, submod, submod};
 #define FILE_SAVE_NEW +1
@@ -329,18 +505,102 @@ USBHub hub1(myusb);
 USBHub hub2(myusb);
 MIDIDevice midi1(myusb);
 int jj1 = 0;
-int j2 = 0;
 int j3 = 0;
 EXTMEM Menu *Menus[NUM_MENUS];
 #include "blobs.h"
 EXTMEM String opts[100];
-EXTMEM String scales[100];
+const String scales[] = {
+	"12 Bar Blues",
+	"Lydian Dom.",
+	"Aeolian",
+	"Altered Locrian ",
+	"Augmented ",
+	"Bebop Maj",
+	"Byzantine M7",
+	"Byzantine",
+	"Chinese",
+	"Chromatic ",
+	"Dom. Bebop",
+	"Dorian b2",
+	"Dorian b5",
+	"Dorian",
+	"Egypthian",
+	"Enigmatic ",
+	"Half diminished ",
+	"Harm. Maj 7",
+	"Harm. Min 7",
+	"Harmonic Maj.",
+	"Harmonic Min ",
+	"Hindu",
+	"Hirayoshi",
+	"Hungarian Gypsy",
+	"Hungarian Maj ",
+	"Hungarian Min",
+	"Insen ",
+	"Ionian #2",
+	"Ionian Aug #2",
+	"Istrian ",
+	"Iwato ",
+	"Lead. Wh. Tone",
+	"Locrian #5",
+	"Locrian #6",
+	"Locrian Dom.",
+	"Locrian Maj",
+	"Locrian",
+	"Lydian #2 #6",
+	"Lydian #2",
+	"Lydian #6",
+	"Lydian Aug#2",
+	"Lydian Aug. Dom.",
+	"Lydian Aug.",
+	"Lydian b#",
+	"Lydian b3",
+	"Lydian Dom. b6",
+	"Lydian Dom.",
+	"Lydian",
+	"Major",
+	"Man Gong",
+	"Melodic Maj.",
+	"Melodic Maj.M2",
+	"Melodic Maj.M3",
+	"Melodic Maj.M4",
+	"Melodic Maj.M6",
+	"Melodic Maj.M6",
+	"Melodic Maj.M7",
+	"Melodic Min.",
+	"Mixolydian b9",
+	"Mixolydian",
+	"Miyako-bushi",
+	"Neapol. Maj.",
+	"Neapol. Min",
+	"Octatonic ",
+	"Oriental",
+	"Pentatonic Maj.",
+	"Pentatonic Min.",
+	"Persian ",
+	"Phrygian b4",
+	"Phrygian min.",
+	"Phrygian",
+	"Prometheus",
+	"Ritsusen Yo",
+	"Ukrainian Dorian ",
+	"Scale of harmonics ",
+	"Semi Locrian b4",
+	"Sup. Locrian bb3",
+	"Superlocrian",
+	"Tritone ",
+	"Two-semitone tritone ",
+	"Ukrainian Dorian ",
+	"Ultr. Locrian bb3",
+	"Ultraphrygian",
+	"Whole tone ",
+};
 EXTMEM String chordopt[63];
 EXTMEM String samples[100];
 EXTMEM String chordName[2048];
 EXTMEM String filenames[100];
 EXTMEM int onmidis[128];
-EXTMEM unsigned char bitstream[1000000];
+EXTMEM unsigned char bitstream[100000];
 bool mapwhite = true;
 int colidx = 0;
 int fq = 0;
@@ -349,33 +609,17 @@ int commas[20];
 int commidx = 0;
 int bitidx = 0;
 bool playSeq = 0;
-EXTMEM byte midifile[80000];
-EXTMEM byte midibase64[80000];
+EXTMEM byte midifile[100000];
+EXTMEM byte midibase64[100000];
 int midiptr = 0;
 #define HAS_MORE_BYTES 0x80
-String lastLoadMap = "";
+EXTMEM String lastLoadMap = "";
 String actMap = "";
 class MidiEvent
 {
 public:
 	MidiEvent() {}
-	void init(int time, byte event, byte note, byte velocity, byte channel, short id)
-	{
-		_event = event;
-		_note = note;
-		_velocity = velocity;
-		_channel = channel;
-		_time = time;
-		if (event)
-			onmidis[note] = id;
-		else
-		{
-			on_id = onmidis[note];
-		}
-		_id = id;
-		DBG(SN(_time) + " " + SN(note) + " " + SN(onmidis[note]) + " " + SB(event) + " " + SN(_length));
-	}
-	void recinit(byte event, byte note, byte velocity, byte channel, short id)
+	void init(byte event, byte note, byte velocity, byte channel)
 	{
 		_event = event;
 		_note = note;
@@ -384,12 +628,11 @@ public:
 		if (starttime == 0)
 			starttime = millis();
 		_time = millis() - starttime;
-		if (event == 0x90)
-			onmidis[note] = _time;
-		else
-			_length = _time - onmidis[note];
-		DBG(SN(_time) + " " + SN(note) + " " + SN(onmidis[note]) + " " + SN(event) + " " + SN(_length));
-		_id = id;
+		//		_id = id;
+//		FDBG(show());
+	}
+	String show(){
+		return String(SN(_time) + " " + SN(_event) + " " + SN(_note) + " " + SN(_velocity));
 	}
 	byte _event;
 	byte _note;
@@ -397,9 +640,9 @@ public:
 	byte _channel;
 	int _time;
 	static int starttime;
-	int _length = 0;
-	short _id = 0;
-	short on_id = -1;
+//	int _length = 0;
+//	short _id = 0;
+//	short on_id = -1;
 };
 enum trans
 {
@@ -413,30 +656,35 @@ enum trans
 };
 int MidiEvent::starttime = 0;
 short lastEvent = 0;
+
 short transport = STOPPED;
 int nextEvent = 0;
 
-EXTMEM MidiEvent sequences[10000];
-short scFP[] = {628, 874, 726, 677, 1228, 1498, 435, 1241, 1128, 2047,
-				1882, 853, 822, 854, 594, 1705, 694, 437, 429, 1243,
-				1238, 730, 198, 742, 876, 1254, 593, 1372, 1436, 101,
-				561, 1706, 1434, 821, 697, 698, 693, 1644, 1388, 1642,
-				1452, 938, 1450, 1381, 1382, 746, 874, 1386, 1370, 660,
-				1563, 1682, 1992, 1299, 1306, 1306, 793, 1366, 851, 858,
-				209, 1365, 1237, 1462, 825, 330, 596, 1209, 717, 729, 725,
-				810, 338, 870, 348, 686, 683, 685, 617, 227, 870, 427, 461, 682};
-String wavenames[100];
-String presetnames[100];
+EXTMEM MidiEvent sequences[100000];
+const short scFP[] PROGMEM = {628, 874, 726, 677, 1228, 1498, 435, 1241, 1128, 2047,
+					  1882, 853, 822, 854, 594, 1705, 694, 437, 429, 1243,
+					  1238, 730, 198, 742, 876, 1254, 593, 1372, 1436, 101,
+					  561, 1706, 1434, 821, 697, 698, 693, 1644, 1388, 1642,
+					  1452, 938, 1450, 1381, 1382, 746, 874, 1386, 1370, 660,
+					  1563, 1682, 1992, 1299, 1306, 1306, 793, 1366, 851, 858,
+					  209, 1365, 1237, 1462, 825, 330, 596, 1209, 717, 729, 725,
+					  810, 338, 870, 348, 686, 683, 685, 617, 227, 870, 427, 461, 682};
+EXTMEM String wavenames[100];
+EXTMEM String presetnames[100];
+EXTMEM int patnames[500];
+EXTMEM String patvals[500];
 int maxsamples;
-String midiNames[12] = {"C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"};
+byte lastmet[8] ={ 0,0,0,0,0,0,0,0};
+//String xmidiNames[12] = {"C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"};
 String midiNamesSharp[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 String sel = "Note:";
-String midiNamesFlat[12] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
-String midiNamesOpt[13] = {"note", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+EXTMEM String midiNamesFlat[12] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+EXTMEM String midiNamesOptF[13] = {"note", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+EXTMEM String midiNamesOptS[13] = {"note", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 EXTMEM String midiNamesLong[128];
 const String selected[2] = {"_", "x"};
 EXTMEM const String pmode[4] = {"full", "scale", "map", "bypass"};
-EXTMEM short replchord[96];
+EXTMEM int replchord[96];
 EXTMEM short transpose[96];
 EXTMEM int keychord[96];
 short maxrepl = 0;
@@ -468,8 +716,8 @@ elapsedMillis led3;
 elapsedMillis led4;
 elapsedMillis led5;
 extern u_int8_t _channel;
-signed char SplitS(String what, char where, String *res, signed char nmax);
-int baseNoteID[128];
+int SplitS(String what, char where, String *res, int nmax);
+EXTMEM int baseNoteID[128];
 signed char basenote = 0;
 signed char chordptr = 0;
 signed char sleepNoW = 0;
@@ -516,10 +764,79 @@ class Parameter;
 Parameter *aDTPara = 0;
 byte scalebase = 0;
 bool scend = false;
+int clickc = 0;
+bool actpat[2];
+#define MAXPAT 64
+#define MAXVOI 32
+#define MAXGRP 4
+String g_search;
+EXTMEM String patfiles[MAXPAT][MAXGRP];
+EXTMEM String patcolors[MAXPAT][MAXGRP];
+byte triggerNote[128];
+byte acttrigger[MAXPAT][MAXGRP];
+short startvoice = -1;
+#define maxticks 12
+IntervalTimer metTimer;
+int numq = 1;
+float metpart = 1;
+float mettime = 2000000;
+bool metison = false;
+bool metisback = false;
+short patternc = -1;
+byte patcnt = 0;
+int actpattern = 0;
+int actgrp = 0;
+int startpattern = -1;
+EXTMEM short seqpattern[MAXPAT * maxticks][MAXVOI][MAXGRP];
+byte zerobase = 1;
+byte minstr[MAXVOI];
+byte mvelo[MAXVOI];
 
+bool seqswitch[maxticks];
+EXTMEM int patidt[MAXVOI][MAXPAT];
+int metopt[MAXVOI];
+int instopt[MAXVOI];
+int voiceidt[MAXVOI];
+int velopt[MAXVOI];
+int metid[MAXVOI];
+byte beatlength = 4;
+void click(void);
+// String pout = "";
+bool beatstate = false;
+byte mettrigger = 24;
+int keyidt,beatidt,ccidt,nltidt;
+short mbase = 100, ledbase = mbase + 40, sbase = 200 + 35, tbase = sbase + 15, fbase = tbase + 40, xbase = fbase + 20, base5 = xbase + 80, base6 = base5 + 20, base7 = base6 + 30, base8 = base7 + 50, base9 = base8 + 50, base10 = base9 + 50;
+int mtarget = 0;
+int centerx[10], centery[10];
+int ccopt,lastcc=0;
+byte ccvalopt=0,lastccval=0;
+int ccmetid;
+EXTMEM byte ccpattern[MAXPAT * maxticks][MAXGRP];
+EXTMEM byte ccval[MAXPAT * maxticks][MAXGRP];
+EXTMEM byte patvoicelow[MAXPAT][MAXGRP];
+EXTMEM byte patvoicehigh[MAXPAT][MAXGRP];
+EXTMEM String counts[128];
+bool patset = false;
+long lastmill = 0;
+byte lastBeat = 0;
+EXTMEM byte beatCount[MAXPAT][MAXGRP];
+byte lastvoice = 0;
+int patternidt = 0;
+int patternidt2 = 0;
+int ccpatternidt = 0;
+int ccvpatternidt = 0;
+EXTMEM const String coloring[4] = {
+	"cyan",
+	"#66CDAA",
+	"#008B8B",
+	"#5F9EA0",
+	};
+byte lastColor = 0;
 // **************************config *****************
 signed char lastMap = 0;
-//int lastScale = 0;
+// int lastScale = 0;
+// String metpat[8] = {"q", "ee", "3eee", "ssss", "e.ss", "esse", "e3sss", "3sss e"};
+// short metval[8] = {1, 65, 273, 585, 1281, 1601, 1353, 85};
 
 signed char octave = 0;
 signed char mapID = 0;
@@ -534,9 +851,9 @@ signed char s2index = 1;
 String wav1File;
 String wav2File;
 signed char preindex = -1;
-signed char actPre = 0;
-signed char recentPre = 0;
-String scaleNames[2048];
+//signed char actPre = 0;
+//signed char recentPre = 0;
+EXTMEM String scaleNames[2048];
 signed char contrast;
 int g_scid = 0;
 IntervalTimer *myTimer;
@@ -554,5 +871,5 @@ unsigned long myTime;
 bool trigger = false;
 
 #include "gfunctions.h"
-#include "background.h"
+#include "svgdraw.h"
 #endif

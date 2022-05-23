@@ -124,6 +124,7 @@ void midiSilence(void)
 // Some midi files are badly behaved and leave notes hanging, so between songs turn
 // off all the notes and sound
 {
+    STACK;
     midi_event ev;
 
     // All sound off
@@ -153,6 +154,7 @@ void midiSilence(void)
         vcfenv[v]->noteOff();
 //        FDBG(SN(v) + " " + SB(vcfenv[v]->isSustain()));
     }
+    STACK;
 }
 void tickMetronome(void)
 // flash a LED to the beat

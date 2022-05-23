@@ -1,21 +1,5 @@
-extern u_int8_t _channel;
+
 extern u_int8_t _velocity;
-// int cids[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-// short Chordindex[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-// short chordinv[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-// short invptr = 0;
-// short invmax = 0;
-#if 0
-#define DBG(x)      \
-	if (debug == 1) \
-	Serial.println(x)
-#define FDBG(x) \
-	Serial.println(x)
-
-#define SN(x) String(x)
-
-#define SP(x) String((int)x, HEX)
-#endif
 extern MenuMidiSet *curMMS;
 #include "chord.h"
 extern Chord *lastChord;
@@ -29,58 +13,82 @@ int doinverse(int inverse)
 	for (int c = 0; c < chordptr; c++)
 	{
 		mid |= 1 << ((chordnotes[c] + 12 - bn) % 12);
-		DBG(String(c) + " " + String((chordnotes[c] + 12 - bn) % 12) + " " + String(chordnotes[c]) + " ");
+		//		DBG(String(c) + " " + String((chordnotes[c] + 12 - bn) % 12) + " " + String(chordnotes[c]) + " ");
 	}
 	mid = mid >> 1;
-	DBG(midiNames[basenote] + " done " + String(inverse) + "=>" + String(mid));
+	if (chords[mid] == 0)
+		return 0;
+	//	FDBG(midiNames[basenote] + " done " + String(inverse) + "=>" + String(mid) + " " + SN(chords[mid]->invid) + " " + SN(chords[mid]->_mscid));
+	STACK;
 	return mid;
 }
 bool inversion(bool emit = false)
 {
 	id = doinverse(0);
+	if (id == 0)
+		return false;
 	int bn = chordnotes[0];
 	bool found = false;
-	DBG("id " + SN(id));
+	//	FDBG("in id " + SN(id));
+	STACK;
+	//	inData = midiNamesSharp[bn % 12] + String(id);
+
 	if (chords[id] != nullptr)
 	{
-		String cn = chords[id]->name;
-		byte cninv = chords[id]->note[chords[id]->invid];
-		if (cninv > 0)
+		String cn = chords[id]->getName(true);
+		int inv = chords[id]->invid;
+		if (inv > 0)
 		{
-			DBG(String(id * 100 + bn) + " " + midiNamesSharp[bn % 12] + cn + "/" + midiNamesSharp[cninv]);
+			for (int i = 1; i < chords[id]->num; i++)
+			{
+				if (chords[id]->inverseID[i] == chords[id]->_mscid)
+				{
+					//					FDBG(SN(i) + " " + chords[id]->inverseID[i]);
+					//					int rid = chords[id]->_mscid;
+					cn = chords[id]->getName();
+					bn = chordnotes[i];
+				}
+			}
 		}
-		else
-		{
-			DBG(String(id * 100 + bn) + " " + midiNamesSharp[bn % 12] + cn);
-		}
-		//		printA4(midiNamesFlat[bn % 12] + (id != 72 ? cn : ""));
-		for (int i = 0; i < maxrepl; i++)
-		{
-			DBG("key " + String(keychord[i]) + " ?" + String(id * 100 + bn));
+		STACK;
+		MIDIinData = midiNamesSharp[bn % 12] + cn + String(bn / 12);
+		//		FDBG(String(id * 100 + bn) + " ...... " + MIDIinData);
 
-			if (keychord[i] == id * 100 + bn || (chordptr == 2 && keychord[i] == id * 100))
+		//		printA4(midiNamesFlat[bn % 12] + (id != 72 ? cn : ""));
+		for (int i = 0; i < maxrepl && !originalmode; i++)
+		{
+//			FDBG("key " + String(keychord[i]) + " ?" + String(id * 100 + bn % 12));
+
+			if (keychord[i] == id * 100 + bn % 12)
 			{
 				found = true;
 				actkeyidx = i;
-				DBG("found key " + String(keychord[i]) + " ?" + String(id * 100 + bn));
+				//				FDBG("found key " + String(keychord[i]) + " ?" + String(id * 100 + bn));
 				break;
 			}
 		}
-		if (menuState == NEWMAP)
+		STACK;
+		//		FDBG(__CALLER__);
+		if (menuState == NEWMAP || newmapmode)
 		{
-			if (!found && maxrepl < 96)
+//			FDBG(SB(found) + " ===== " + SN(maxrepl));
+			if ((!found && maxrepl < 96) || maxrepl == 0)
 			{
 				actkeyidx = maxrepl;
-				keychord[actkeyidx] = id * 100 + bn;
+				keychord[actkeyidx] = id * 100 + bn % 12;
+				//				STACK;
 				transpose[actkeyidx] = 0;
 				replchord[actkeyidx] = id;
 				maxrepl++;
+//				FDBG(String(actkeyidx) + " / " + String(maxrepl) + " " + SN(keychord[actkeyidx]) + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
 			}
 			//		int ki = keychord[actkeyidx];
 			//		int ac = ki / 100;
 			//		Chord *vc = chords[ac];
 			//			DBG(String(actkeyidx) + " / " + String(maxrepl) + " " + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
+			//			STACK;
 			Menus[NEWMAP]->showmap(true);
+			webgui.setMonitor(idt, noteLine(false));
 		}
 	}
 	else
@@ -115,10 +123,12 @@ bool inversion(bool emit = false)
 			frec.close();
 		}
 	}
+	STACK;
 	return found;
 }
-void processChord()
+void processChord(byte pchannel)
 {
+	STACK;
 	bool repl = false;
 	byte procMode = Menus[SETTINGS]->procMode;
 	scaled = (scFP[SCALES] != 2047 && procMode == 0);
@@ -143,6 +153,7 @@ void processChord()
 	int basenote = (actkeyc % 100);
 	int ack = actkeyc / 100;
 	//	FDBG("\n"+SN(scnote) + " ----- " + SN(actw) + "=>" + SN(actr) + "=" + SN(basenote));
+	STACK;
 	if (chordptr == 2)
 	{
 		if (progressmode)
@@ -161,16 +172,22 @@ void processChord()
 	} //	chordptr = 0;
 	  //	FDBG("repl " + SN(repl) + " " + String(actkeyidx) + " / " + chordName[(keychord[actkeyidx] / 100)] + " " + String(transpose[actkeyidx]) + " " + chordName[(replchord[actkeyidx])]);
 	//	printA4(midiNamesFlat[basenote % 12] + chordName[(keychord[actkeyidx] / 100)]);
-	inData = midiNamesFlat[basenote % 12] + chordName[ack];
-
+	//	if (!originalmode)
+	//		inData = midiNamesFlat[basenote % 12] + chordName[ack];
+	//	else
+	//		inData = midiNamesFlat[chordnotes[0] % 12] + chordName[id];
+	//	if (!originalmode)
+	//		FDBG(SN(actkeyidx) + " " + SN(keychord[actkeyidx]) + " " + inData);
 	//	FDBG("chord @ " + SN(nextEvent));
-	if (!repl)
+	if (!repl || originalmode)
 	{
-		byte note = basenote;
-		//		if (Menus[SETTINGS]->procMode < 2)
-		//			note += octave * 12 + semiTone;
-		//		chords[keychord[actkeyidx] / 100]->noteOn(note, _channel, _velocity);
-		//		baseNoteID[basenote] = keychord[actkeyidx] / 100;
+		STACK;
+		byte note = chordnotes[0];
+//		if (Menus[SETTINGS]->procMode < 2)
+//			note += octave * 12 + semiTone;
+//		chords[keychord[actkeyidx] / 100]->noteOn(note, _channel, _velocity);
+//		baseNoteID[basenote] = keychord[actkeyidx] / 100;
+#if 0
 		display.setCursor(0, 7 * 7);
 		clearToEOL();
 		print(midiNames[scnote % 12], false, __LINE__);
@@ -178,57 +195,80 @@ void processChord()
 		print("->", false, __LINE__);
 		print(midiNames[note % 12], false, __LINE__);
 		print(chordName[ack], false, __LINE__);
-		lastChord = chords[ack];
+		display.display();
+#endif
+		lastChord = chords[id];
 		for (int i = 0; i < chordptr; i++)
 		{
-			onnotes[chordnotes[i]] = ack;
-			DBG(" --- " + SN(chordnotes[i]) + " -> " + SN(ack));
+			onnotes[chordnotes[i]] = id;
+			//			if (lastChord == 0)
+			//				FDBG(" --- " + SN(chordnotes[i]) + " -> " + SN(id));
 		}
-		chords[ack]->noteOn(note, _channel, _velocity);
+		if (lastChord == 0)
+			return;
+		//		FDBG(SN(id) + " " + SP(chords[id]) + " " + SN(note));
+
+		STACK;
+		outData = MIDIinData;
+		if (!(menuState == NEWMAP || newmapmode))
+		{
+//			FDBG(pchannel);
+			chords[id]->noteOn(note, pchannel, _velocity);
+		}
 		isChord = false;
 		isChordend = true;
 		chordptr = 0;
-		display.display();
+		STACK;
 		return;
 	}
 	else
 	{
-		byte note = basenote + transpose[actkeyidx];
+		STACK;
+		byte oct = chordnotes[0] / 12;
+		byte note = basenote % 12 + transpose[actkeyidx] + oct * 12;
 		int tr = note % 12;
-		//            FDBG(SN(scalebase) + " " + SN(i) + "? whole " + SN(mapwhole[scalebase][i]) + " -> " + SN(pos) + " " + isFlat[tr]);
-		if (scnote != 5 && scnote != 0)
-			note -= isFlat[tr];
-		else
-			note += isFlat[tr];
-
+		if (g_scid == 2047)
+		{
+			if (scnote != 5 && scnote != 0)
+				note -= isFlat[tr];
+			else
+				note += isFlat[tr];
+		}
 		//		DBG(String(actkeyidx) + " / " + String(maxrepl) + " " + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
 		//		DBG(String(actkeyidx) + " / " + chordName[(keychord[actkeyidx])] + " " + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx])));
-		//		FDBG(String(note) + "=" + String(basenote) + " " + String(transpose[actkeyidx]));
+		//		FDBG(SN(basenote)+String(note) + "=" + String(chordnotes[0]) + " " + String(transpose[actkeyidx])+SN(oct));
 		//		FDBG(String(actkeyidx) + " / " + chordName[ack] + " " + String(transpose[actkeyidx]) + " " + chordName[(replchord[actkeyidx])]);
 
 		//		if (Menus[SETTINGS]->procMode<2)
 		//		note += octave * 12 + semiTone;
 		display.setCursor(0, 7 * 7);
 		clearToEOL();
-		display.print(midiNames[basenote % 12]);
+		display.print(midiNamesFlat[basenote % 12]);
 		display.print(chordName[ack]);
 		display.print("->");
-		display.print(midiNames[note % 12]);
+		display.print(midiNamesFlat[note % 12]);
 		display.print(chordName[replchord[actkeyidx]]);
 		//		printA4(midiNamesFlat[basenote % 12] + chordName[replchord[actkeyidx]]);
-		outData = midiNamesFlat[note % 12] + chordName[replchord[actkeyidx]];
-		lastChord = chords[replchord[actkeyidx]];
+		STACK;
+		Chord *cho = chords[replchord[actkeyidx]];
+
+		outData = midiNamesFlat[note % 12] + cho->getName() + String(note / 12);
+		lastChord = cho;
 		for (int i = 0; i < chordptr; i++)
 		{
 			onnotes[chordnotes[i]] = replchord[actkeyidx];
-			DBG(" --- " + SN(chordnotes[i]) + " -> " + SN(replchord[actkeyidx]));
+			//			DBG(" --- " + SN(chordnotes[i]) + " -> " + SN(replchord[actkeyidx]));
 		}
-		chords[replchord[actkeyidx]]->noteOn(note, _channel, _velocity);
+		STACK;
+	//	FDBG(pchannel);
+		cho->noteOn(note, pchannel, _velocity);
 		//		baseNoteID[basenote] = replchord[actkeyidx];
 		isChord = false;
 		chordptr = 0;
 		isMap = true;
+
 	}
+	STACK;
 
 	return;
 }

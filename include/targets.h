@@ -6,16 +6,11 @@ extern AudioPlaySdWav playSdWav2;
 int v = 0;
 int v2note[NUMVOICES] = {-1, -1, -1, -1, -1, -1};
 float lastfreq = 0;
-#define DBG(x)      \
-	if (debug == 1) \
-	Serial.println(x)
-#define FDBG(x) \
-	Serial.println(x)
 //#define SN(x) String(x)
 //#define SB(x) String(x ? "t" : "f")
 #define SP(x) String((int)x, HEX)
 MenuPara *MenuPara::SynthMenu;
-void synthnoteOn(byte sourceNote, byte polye)
+void synthnoteOn(byte sourceNote, byte polye, float vel)
 {
 	AudioInterrupts();
 	for (v = 0; v < NUMVOICES && v < polye; v++)
@@ -36,10 +31,12 @@ void synthnoteOn(byte sourceNote, byte polye)
 		if (v2note[v] == -1 || poly == 0)
 		{
 			//
-			//			Serial.println("**** NoteOn: "+ SN(note_frequency[sourceNote])+" "+ SN( sourceNote)+" "+ SN( v)+" "+ SN( lastfreq));
+//			Serial.println("**** NoteOn: " + SN(note_frequency[sourceNote]) + " " + SN(sourceNote) + " " + SN(v) + " " + SN(lastfreq));
 			float freq = note_frequency[sourceNote];
 			vtmillis[v] = 0;
-			if (onoff == 0 || lastfreq == 0 || (!poly && !vcaenv[v]->isActive()))
+			vcomix[v]->gain(0, vel);
+//			FDBG("Tau "+SN(vcos1[v]->getTau()));
+			if (vcos1[v]->getTau() ==0||onoff == 0 || lastfreq == 0 || (!poly && !vcaenv[v]->isActive()))
 			{
 				vcos1[v]->frequency(freq);
 				vcaenv[v]->noteOff();
@@ -96,7 +93,7 @@ void playFile(String filename, bool isExtsw)
 	{
 		myFile.close();
 
-		DBG(filename + " playing...");
+		FDBG(filename + " playing...");
 		if (isExtsw)
 			playSdWav1.play(filename.c_str());
 		else
@@ -112,7 +109,7 @@ public:
 		parent = Parent_ID;
 		//      if(debug==1)DBG(items[0] + " parent " + Menus[parent]->items[0] );
 		Paras[nump++] = new Parameter("Syn. Para", &SynthPara, 0, NUMSYNTH, synthParas);
-//		Paras[nump++] = new Parameter("BPM", &BPM, 0, 1, selected);
+		//		Paras[nump++] = new Parameter("BPM", &BPM, 0, 1, selected);
 		Paras[nump++] = new Parameter("USB MIDI", &UMO, 0, 1, selected);
 		Paras[nump++] = new Parameter("MIDI 1", &MO1, 0, 1, selected);
 		Paras[nump++] = new Parameter("MIDI 2", &MO2, 0, 1, selected);
@@ -138,7 +135,7 @@ public:
 		name = pname;
 		//		FDBG("my ID " + SN(me) + " " + name);
 	}
-	void createControl();
+	void createControl(String);
 
 	void save(File frec)
 	{
@@ -206,7 +203,7 @@ public:
 		SynthPara = readrec(frec);
 		// 		if (SynthPara > 0 )
 		// 		{
-		// //			FDBG(synthParas[SynthPara] + " by " + String(me));
+		// 			FDBG(synthParas[SynthPara] + " by " + String(me));
 		// 				byte pn = SynthPara;
 		// 				Parameter *SynthPara = MenuPara::SynthMenu->getPara(pn);
 		// 				if (SynthPara == nullptr)
@@ -228,7 +225,7 @@ public:
 		// 	printA4(((MenuPara *)Menus[SETTINGS])->BPM);
 		// 	return;
 		// }
-
+		STACK;
 		if (eType == 4)
 			return;
 		byte polye = 1;
@@ -237,20 +234,47 @@ public:
 		if (poly)
 			polye = NUMVOICES;
 		signed char sno[6] = {sourceNote, sourceNote, sourceNote, sourceNote, sourceNote, sourceNote};
-		if (UMO && transposeit[0])
+		if (UMO && transposeit[16] == 127)
 			sno[0] = sourceNote + 12 * octave + semiTone;
-		if (MO1 && transposeit[1])
+		if (MO1 && transposeit[17] == 127)
 			sno[1] = sourceNote + 12 * octave + semiTone;
-		if (MO2 && transposeit[2])
+		if (MO2 && transposeit[18] == 127)
 			sno[2] = sourceNote + 12 * octave + semiTone;
-		if (SYNTH && transposeit[3])
+		if (SYNTH && transposeit[19] == 127)
 			sno[3] = sourceNote + 12 * octave + semiTone;
-		if (CV1 && transposeit[4])
+		if (CV1 && transposeit[20] == 127)
 			sno[4] = sourceNote + 12 * octave + semiTone;
+		int trans = transposeit[sourceCH];
+		if (trans == 127)
+			trans = 12 * octave + semiTone;
+		if (UMO && transposeit[16] == 0)
+			sno[0] = sourceNote + trans;
+		if (MO1 && transposeit[17] == 0)
+			sno[1] = sourceNote + trans;
+		if (MO2 && transposeit[18] == 0)
+			sno[2] = sourceNote + trans;
+		if (SYNTH && transposeit[19] == 0)
+			sno[3] = sourceNote + trans;
+		if (CV1 && transposeit[20] == 0)
+			sno[4] = sourceNote + trans;
+		STACK;
+		if (UMO && transposeit[16] != 0 && transposeit[16] < 120)
+			sno[0] = sourceNote + transposeit[16];
+		if (MO1 && transposeit[17] != 0 && transposeit[17] < 120)
+			sno[1] = sourceNote + transposeit[17];
+		if (MO2 && transposeit[18] != 0 && transposeit[18] < 120)
+			sno[2] = sourceNote + transposeit[18];
+		if (SYNTH && transposeit[19] != 0 && transposeit[19] < 120)
+			sno[3] = sourceNote + transposeit[19];
+		if (CV1 && transposeit[20] != 0 && transposeit[20] < 120)
+			sno[4] = sourceNote + transposeit[20];
 		//		if (CV2 && transposeit[5])
 		//			sno[5] = sourceNote + 12 * octave + semiTone;
 		if (outData == "")
 			outData = midiNamesLong[sourceNote];
+		STACK;
+
+// FDBG("action " + SN(eType) + " " + SN(SYNTH) + " " + SN(sourceCC) + " " + SN(transposeit[sourceCH - 1]));
 #if 0 
 		if (eType == 2 && sourceCH > 0)
 		{
@@ -281,6 +305,7 @@ public:
 		}
 #endif
 		byte ch = sourceCH;
+		STACK;
 		switch (eType)
 		{
 		case 6:
@@ -299,7 +324,7 @@ public:
 		case 0:
 
 			//				DBG("\n**** NoteOff: UMO==%d,MO1==%d,MO2==%d ****", UMO, MO1, MO2);
-			DBG(String(on ? "On " : "Off ") + String(sourceNote) + " = " + midiNamesLong[sourceNote] + " on ch " + String(ch) + " from " + from);
+//			FDBG(String(on ? "On " : "Off ") + String(sourceNote) + " = " + midiNamesLong[sourceNote] + " on ch " + String(ch) + " from " + from);
 			if (UMO)
 			{
 				usbMIDI.sendNoteOff(sno[0], 0, ch, cable);
@@ -333,8 +358,9 @@ public:
 			break;
 		case 1:
 			//			if(debug==1)
-			//	FDBG(SN(millis())+":"+String(sourceNote) + " = " + midiNamesLong[sourceNote] + " on ch " + String(ch) + " from " + from);
+			//			FDBG(SN(millis())+":"+String(sourceNote) + " = " + midiNamesLong[sourceNote] + " on ch " + String(ch) + " from " + from);
 			// if(debug==1)DBG("\n**** NoteOn: UMO==%d,MO1==%d,MO2==%d %d vel=%d****", UMO, MO1, MO2, sourceNote, sourceVelocity);
+//			FDBG(ch);
 			if (UMO)
 			{
 				usbMIDI.sendNoteOn(sno[0], sourceVelocity, ch, cable);
@@ -358,8 +384,16 @@ public:
 			if (SYNTH)
 			{
 				// fclick1.setOn(true);
-				synthnoteOn(sno[3], polye);
-				outgoing[3] = HIGH;
+				if (sourceVelocity > 0)
+				{
+					synthnoteOn(sno[3], polye, sourceVelocity / 127.0);
+					outgoing[3] = HIGH;
+				}
+				else
+				{
+					synthnoteOff(sno[3], polye);
+					outgoing[3] = LOW;
+				}
 			}
 			if (CV1)
 			{
@@ -403,11 +437,22 @@ public:
 					return;
 				oldCC = sourceCC;
 				oldVal = sourceVelocity;
-				if (transport == RECORDING && lastEvent < 10000)
+				if (sourceCC < 120)
 				{
-					sequences[lastEvent].recinit(0xB0, sourceCC, sourceVelocity, ch, lastEvent);
+					lastcc = sourceCC;
+					lastccval = sourceVelocity;
+				}
+				if (ccpatternidt > 0)
+				{
+					webgui.setMonitor(ccpatternidt, "CC " + String(lastcc));
+					webgui.setMonitor(ccvpatternidt, "CC Value " + String(lastccval));
+				}
+				//				FDBG("CC " + SN(lastcc) +SN(lastccval));
+				if (transport == RECORDING && lastEvent < 100000)
+				{
+					sequences[lastEvent].init(0xB0, sourceCC, sourceVelocity, ch);
 					lastEvent++;
-					} //	debug = 0;
+				} //	debug = 0;
 				if (UMO)
 					usbMIDI.sendControlChange(sourceCC, sourceVelocity, ch, cable);
 				if (MO1)
@@ -417,11 +462,11 @@ public:
 				if (SYNTH)
 				{
 					Parameter *mP = SynthMenu->getPara(sourceCC);
-//					FDBG("CC " + SN(sourceCC));
+					//					FDBG("CC " + SN(sourceCC));
 					if (mP)
 					{
 						mP->fvalue = fmap(sourceVelocity, 0, 128, mP->fvstart, mP->fvend);
-						mP->setSynthVal(__CALLER__);
+						mP->setSynthVal();
 					}
 				} //				if (Menu::triggerCC == sourceCC)
 				  //					trigger = sourceVelocity > 0;

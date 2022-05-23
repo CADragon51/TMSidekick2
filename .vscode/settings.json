@@ -24,6 +24,7 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "numeric": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "algorithm": "cpp"
     }
 }

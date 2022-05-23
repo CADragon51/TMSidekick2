@@ -10,6 +10,8 @@ extern int commidx;
 extern int bitidx;
 extern char bitstream[1000000];
 EXTMEM action_generic_t act[1000];
+// define GUISTACK Serial.println(__LINE__)
+#define GUISTACK
 Webgui::Webgui()
 {
 	numactions = 0;
@@ -93,7 +95,7 @@ void Webgui::update()
 			commas[commidx++] = bitidx;
 		if (c != '\n')
 			bitstream[bitidx++] = c;
-//		Serial.print(c);
+		//		Serial.print(c);
 	}
 
 	if (bitidx > 0)
@@ -117,13 +119,13 @@ void Webgui::update()
 			}
 			Serial.println();
 		}
-		if(eq+fq==0||eq*fq>0)
+		if (eq + fq == 0 || eq * fq > 0)
 		{
 			bitstream[bitidx++] = 0;
 			bitstream[colidx] = 0;
-//			Serial.println();
-//			Serial.println(bitstream);
-			if (!strncmp(bitstream, "ACTION",6))
+			//			Serial.println();
+			//			Serial.println(bitstream);
+			if (!strncmp(bitstream, "ACTION", 6))
 				this->_analyzeStream();
 			colidx = 0;
 			fq = 0;
@@ -148,7 +150,7 @@ void Webgui::_analyzeStream()
 	}
 
 	int sid = para[0].toInt();
-//	Serial.println("sid " + SN(sid));
+	//	Serial.println("sid " + SN(sid));
 	if (bitidx < 100)
 	{
 		if (eq)
@@ -157,7 +159,7 @@ void Webgui::_analyzeStream()
 			value = String(bitstream + fq + 1);
 		else
 			value = String(bitstream + commas[0] + 1);
-//		Serial.println("val " + value);
+		//		Serial.println("val " + value);
 	}
 	else
 		value = "###";
@@ -382,6 +384,7 @@ int Webgui::addButtons(String name, unsigned char numbuttons, String *buttons, C
 		return -1;
 	}
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -412,6 +415,7 @@ int Webgui::addButtons(String name, CallbackTypeInt fnMouseUp /*click*/, int x, 
 	int id;
 	String bname = name + "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -441,6 +445,7 @@ int Webgui::addSwitches(String name, unsigned char numswitches, bool *switches, 
 		return -1;
 	}
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -453,41 +458,56 @@ int Webgui::addSwitches(String name, unsigned char numswitches, bool *switches, 
 		if (switches[i])
 		{
 			_print("on");
+			//			Serial.print("on");
 		}
 		else
 		{
 			_print("off");
+			//			Serial.print("off");
 		}
 		if (i != numswitches - 1)
 		{
 			_print(",");
+			//			Serial.print(",");
 		}
 	}
 	_println();
+	//	Serial.println(numswitches);
+
 	_addAction(id, BOOLEANS, (void *)fnAction);
 	if (id < 0)
-		DBG(name + " " + SN(id));
+		Serial.println(name + " " + SN(id));
 	return id;
 }
-int Webgui::addOptions(String name, unsigned char numoptions, String *options, CallbackTypeInt fnAction, int x, int y, int sel, String title, String classname)
+int Webgui::addOptions(String name, int numoptions, String *options, CallbackTypeInt fnAction, int x, int y, int sel, String title, String classname)
 {
 	String sid;
 	int id;
+	bool deb = false;
+	if (name == "instr")
+		deb = true;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname + "," + String(sel);
 	if (!numoptions)
 	{
-		Serial.println("id error @" + String(__LINE__));
+		Serial.println("id error @" + String(__LINE__) + " " + name + " " + SN(numoptions));
 		return -1;
 	}
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
 	_print(sid);
 	_print(",`");
 	_print(name);
-	_print("`,options,");
-	for (unsigned char i = 0; i < numoptions; i++)
+	if (!deb)
+		_print("`,options,");
+	else
+		_print("`,options127,");
+	//	if (deb)
+	//		Serial.print("`,options,");
+
+	for (unsigned char i = 0; i < numoptions && !deb; i++)
 	{
 		_print("`");
 		_print(options[i]);
@@ -505,13 +525,15 @@ int Webgui::addInputAnalog(String name, float minvalue, float maxvalue, float de
 {
 	String sid;
 	int id;
-	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	if (defaultvalue > maxvalue || defaultvalue < minvalue)
 	{
-		Serial.println("id error @" + String(__LINE__));
-		return -1;
+		defaultvalue = minvalue;
+		Serial.println("id error @" + String(__LINE__) + " " + name);
+//		return -1;
 	}
+	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -535,6 +557,7 @@ int Webgui::addInputString(String name, CallbackTypeCharp fnAction, int x, int y
 	int id;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname + "," + value;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_CONTROL:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -554,6 +577,7 @@ int Webgui::addLED(String name, int x, int y, String title, String classname)
 	int id;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_MONITOR:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -572,6 +596,7 @@ int Webgui::addNeedleIndicator(String name, float minvalue, float maxvalue, int 
 	int id;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_MONITOR:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -593,6 +618,7 @@ int Webgui::addNumericDisplay(String name, int x, int y, String title, String cl
 	int id;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_MONITOR:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -611,6 +637,7 @@ int Webgui::addStringDisplay(String name, int x, int y, String title, String cla
 	int id;
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
+	GUISTACK;
 	_print("ADD_MONITOR:");
 	id = this->_getId();
 	sid = _idtostr(id);
@@ -627,6 +654,7 @@ int Webgui::addStringDisplay(String name, int x, int y, String title, String cla
 void Webgui::setMonitor(int id, float value)
 {
 	CHECKCONNECTION();
+	GUISTACK;
 	_print("SET_MONITOR:");
 	String sid;
 	sid = _idtostr(id);
@@ -637,6 +665,7 @@ void Webgui::setMonitor(int id, float value)
 void Webgui::setMonitor(int id, String value)
 {
 	CHECKCONNECTION();
+	GUISTACK;
 	_print("SET_MONITOR:");
 	String sid;
 	sid = _idtostr(id);
@@ -649,6 +678,7 @@ void Webgui::setMonitor(int id, String value)
 void Webgui::setMonitor(int id, bool value)
 {
 	CHECKCONNECTION();
+	GUISTACK;
 	_print("SET_MONITOR:");
 	String sid;
 	sid = _idtostr(id);
@@ -666,6 +696,8 @@ void Webgui::setMonitor(int id, bool value)
 void Webgui::remove(int id)
 {
 	CHECKCONNECTION();
+	if (id < 0 || id > idcounter)
+		return;
 	_print("REMOVE:");
 	String sid;
 	sid = _idtostr(id);

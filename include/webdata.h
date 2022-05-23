@@ -11,12 +11,13 @@ char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; // buffer to hold incoming packet,
 char ReplyBuffer[] = "acknowledged";       // a string to send back
 EthernetUDP Udp;
 extern MD_MIDIFile SMF;
-//bool sws[] = {false, false, false, false, true};
+// bool sws[] = {false, false, false, false, true};
 short cli;
 short scaleid, baseid, mapid, cliitem;
 short sliderID[45];
 short menuId[20];
 short transId[20];
+short chordselId[20];
 short xtransId[20];
 short impid = 0;
 short posx = 200;
@@ -27,9 +28,9 @@ short selitem = 0;
 short bgitem = 0;
 short showstatid;
 short synthstate = 0;
-short ledpin = 13, inleds[9], outleds[9], inbuts[9], outbuts[9];
-short idt, idtg,sbp, bp, synthmen[3], men, target, gra, cped, chr, ledout, semp, semm, octp, octm, idt1, idt2, showstat, idjx, idjy, cped2, cfsr, csw;
-short ipm, isb, iob,  iab1,iab2,itb, imb, js2,  z1,z2,zone, smen, imbb, sipm,home,file;
+short ledpin = 13, inleds[9], outleds[9], inbuts[9], outbuts[9], movenext[9];
+short idt, idtg, sbp, bp, synthmen[3], men, target, gra, cped, chr, ledout, semp, semm, octp, octm, idt1, idt2, showstat, idjx, idjy, cped2, cfsr, csw;
+short ipm, isb, iob, iab1, iab2, itb, imb, js2, z1, z2, zone, smen, imbb, sipm, home, file, metro, backmetro;
 short delsav = 0, selback = 0, prenameinp = 0, predelsave = 0, mapvers = 0, mapcom = 0;
 float val = 0;
 unsigned int localPort = 6123;
@@ -51,6 +52,8 @@ String offled = "<div class=\"monitor-boolean off\"><div class=\"notification ac
 
 EXTMEM String o;
 EXTMEM String out;
+// int metopt[maxvoices];
+int actpatid, actgrpopt, midiopt;
 
 String presave;
 String grid;
@@ -64,7 +67,7 @@ String help = "ex[port] [seq|ini|prs|map|<file>] <target>~"
               "pl[ay] file|seq~"
               "pc (program change) <program>~"
               "Pr[ogression] <I..>|<i..>|<I7..>|<i7..><IM7..>~"
-              "q[uantize] <num> ~"
+              //              "q[uantize] <num> ~"
               "rm <file>~"
               "sa[ve] <file> <comment>~"
               "sh[ow] seq|map|sca ~"
@@ -73,18 +76,24 @@ String impFile;
 String btns2[] = {"Mode +", "Mode -"};
 String btns3[] = {"Semi +", "Semi -"};
 String btns4[] = {"Oct +", "Oct -"};
-//String btns5[] = {"+", "-", "Select", "Back"};
-String btns7[] = {"&larr;", "&#127968;", "&#x1F5AB;"};
-//String btns6[] = {"Up", "Down"};
-// String btnss[] = {"<font color=\"red\">&#x23FA;</font>", "&#x23F9;", "&#x23ef;", "&#x23ee;", "&#x1F501;", "&#x1F5AB;"};
+String btns7[] = {"&larr;", "&#127968;", "&#x1F5AB;", "&#x23F2;", "&#x25C4;"};
 String btnss[] = {
     "&#x23ee;",
     "&#x25B6;",
     "&#x23F9;",
-    "&#x23FA;",
+    "&#x1F534;",
     "&#x1F501;",
     "&#x1F5AB;"};
+String moveBtn[9] = {
+    "&#x23EE;",
+    "&#x23EA;",
+    "&#x23E9;",
+    "&#x23ED;",
+    "&#x2770;",
+    "&#x25B2;",
+    "&#x25BC;",
+    "&#x2771;",
+    "&#x27F3;"};
 
 String sw[5] = {"Scaling", "Mapping", "Ratchet", "Synth", "TB"};
 String synthitems = "";
-

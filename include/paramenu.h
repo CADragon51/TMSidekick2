@@ -14,7 +14,7 @@ public:
         isPara = true;
         me = myID;
     }
-    void checkcontrol(int type, int id, int select, float value, bool swval);
+    void checkControl(int type, int id, int select, float value, bool swval);
 
     String setMenu()
     {
@@ -194,30 +194,7 @@ public:
             {
                 if (!actPara->isFloat)
                 {
-                    if (!cancel)
-                    {
-                        if (rot_pos == 1)
-                        {
-                            FDBG(SN(rot_pos) + " " + actPara->name + "  " + synthParas[(*actPara->value)] + " " + name + " " + SN(actPara->source));
-                            for (int t = TARGETS; t <= TARGETS + EXT_SWITCH - EXTSETTINGS; t++)
-                            {
-                                MenuPara *mp = (MenuPara *)Menus[t];
-                                FDBG(SN(t) + " " + SN(mp->Paras[rot_pos]->source));
-                            }
-                        }
-                        // pvalue = *actPara->value;
-                        // if (oldvalue == -1)
-                        //     oldvalue = pvalue;
-                        // if (actPara->source >= TARGETS)
-                        // {
-                        //     MenuPara *oldPara = (MenuPara *)Menus[actPara->source];
-                        //     FDBG(oldPara->name);//+ " removed" +  SN(oldPara->Paras[rot_pos]->name);
-                        // }
-                        // actPara->source = me;
-                        // FDBG(actPara->name + "  " + String(*actPara->value) + " " + name + " " + SN(actPara->source));
-                        //						DBG(actPara->name + " old " + String(oldvalue) + " " + String(ratdiv));
-                    }
-                    else
+                    if (cancel)
                     {
                         //						DBG(actPara->name + " next old " + String(oldvalue));
                         *actPara->value = oldvalue;
@@ -330,17 +307,17 @@ public:
     {
         if (p > -1 && p < NUMSYNTH)
             return Paras[p];
- //       FDBG("error: no para @" + SN(p));
+        //       FDBG("error: no para @" + SN(p));
         return nullptr;
     }
-    void createControl()
+    void createControl(String caller)
     {
         int base = 300 + lastXPos;
         bool sws[1];
         int posx = base;
         int posy = 90;
         String swn = "";
-     //   numswitches = 0;
+        //   numswitches = 0;
         //        maxg = 0;
         //        DBG("myID :" + SN(myID));
         if (maxiteml == 0)
@@ -352,6 +329,7 @@ public:
         int j = 1;
         posx = base + widthl + widthr;
         //        maxg = 0;
+        //        FDBG(caller);
         for (int i = 1; i < nump + 1; i++)
         {
             if (Paras[i] == 0)
@@ -365,20 +343,25 @@ public:
             if (Paras[i]->isFloat)
                 vs = Paras[i]->fvstart;
             int vv = *Paras[i]->value;
-            if (Paras[i]->isFloat)
+            if (Paras[i]->tvalue)
+                vv = *Paras[i]->tvalue;
+            else if (Paras[i]->isFloat)
                 vv = Paras[i]->fvalue;
             String name = Paras[i]->name;
-            //           DBG(name);
+            //          Serial.println(Paras[i]->name + " " + String(vs) + "> " + String(vv) + "< " + String(ve));
+            webgui.remove(Paras[i]->monid);
+
             int ret = webgui.addNumericDisplay(name, posx + j * 80 + 65, posy + 200, "f", "nomonitor");
             Paras[i]->monid = ret;
 
             webgui.setMonitor(ret, Paras[i]->format());
+            webgui.remove(guiid[maxg]);
             guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vv, &onSlider, posx + j * 80, posy, "title", "controlx");
             if (guiid[maxg] == -1)
                 guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vs, &onSlider, posx + j * 80, posy, "title", "controlx");
-            DBG(Paras[i]->name + " " + SN(posx + maxg * 80) + "," + posy + " " + guiid[maxg]);
-            id2para[guiid[maxg] % 400] = i;
-            menId[guiid[maxg] % 400] = me;
+            //            FDBG(Paras[i]->name + " " + SN(posx + maxg * 80) + "," + posy + " " + guiid[maxg]);
+            id2para[guiid[maxg] % 1400] = i;
+            menId[guiid[maxg] % 1400] = me;
             maxg++;
             j++;
         }
@@ -398,6 +381,7 @@ public:
             {
                 sws[0] = *Paras[i]->value > 0;
                 DBG(Paras[i]->name + " " + SB(sws[0]) + " " + SP(Paras[i]));
+                webgui.remove(guiid[maxg]);
                 guiid[maxg] = webgui.addSwitches(Paras[i]->name, 1, sws, &onSwitches, inpx, inpy + j++ * inph, "f", "nomonitor");
                 id2para[guiid[maxg]] = i;
                 //              DBG(Paras[i]->name + " " + SN(guiid[maxg]) + " " + SN(id2para[guiid[maxg]]));
@@ -410,8 +394,17 @@ public:
                 int av = *Paras[i]->value;
                 int pl = 8 * Paras[i]->mv;
                 //                DBG("position " + SN(Paras[i]->mv) + " " + SN(pl) + " " + SN(inpx - pl));
+                //              FDBG(Paras[i]->name + " " + SN(pl));
+                if (Paras[i]->name == "SplitNote")
+                    pl += 20;
                 if (pl > 150)
                     pl -= 40;
+                if (Paras[i]->name == "Beatlength")
+                {
+                    av = *Paras[i]->value - 1;
+                    //                   FDBG(Paras[i]->name + " " + SN(av));
+                }
+                webgui.remove(guiid[maxg]);
                 guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, inpx - pl, inpy + j++ * inph, av, "f", "nomonitor"); //*Paras[i]->value);
                 lg++;
                 id2para[guiid[maxg]] = i;

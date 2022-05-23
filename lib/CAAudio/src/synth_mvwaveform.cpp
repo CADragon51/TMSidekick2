@@ -65,7 +65,7 @@ void AudioSynthMVWaveformModulated::update(void)
 	// Pre-compute the phase angle for every output sample of this update
 
 	// If the amplitude is zero, no output, but phase still increments properly
-	if (magnitude[0] == 0)
+	if (magnitude[0]+ magnitude[1]+magnitude[2]== 0)
 	{
 		if (shapedata)
 			release(shapedata);
@@ -79,14 +79,14 @@ void AudioSynthMVWaveformModulated::update(void)
 		Serial.println("no block");
 		return;
 	}
+//	Serial.println(magnitude[2]);
 	for (int p = 0; p < 3; p++)
 	{
 		ph = phase_accumulator[p];
 		inc = phase_increment[p];
 		if (ismod)
-			if (ismod)
 				inc *= (1 + mod);
-		if (isshape && p == 1)
+		if (isshape && p == 1 && detune==0)
 			inc *= (1 + smod);
 		uint32_t tinc = inc;
 		float sinc = from_phase_increment[p] / ftop;
@@ -134,9 +134,9 @@ void AudioSynthMVWaveformModulated::update(void)
 						upw = 0;
 				}
 			}
-			if (p == 0)
+			if (p ==0)
 				block->data[i] = 0;
-			switch (tone_type)
+			switch (tone_type[p])
 			{
 			case WAVEFORM_SINE:
 				index = ph >> 24;
