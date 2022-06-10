@@ -29,6 +29,11 @@ void websetup()
     //   DBG(F("Connected to webgui server !"));
     webgui.reset(); // clear the board
                     //  bgitem = webgui.addStringDisplay("_bg_", 0, 0, false, "nomonitor");
+    for (int p = 0; p < MAXPAT; p++)
+    {
+        actbeatID[p] = -1;
+    }
+
     STACK;
     selitem = webgui.addStringDisplay("<t3>TMS</t3>", 0, 0, "f", "nomonitor");
     if (selitem < 0)
@@ -38,7 +43,7 @@ void websetup()
     home = webgui.addButtons(btns7[1], &onButtonRelease, 50, mbase, "f");
     metro = webgui.addButtons(btns7[3], &onButtonRelease, 100, mbase, "f");
     //   backmetro = webgui.addButtons(btns7[4], &onButtonRelease, 100, mbase + 50, "f");
-    file = webgui.addButtons(btns7[2], &onButtonRelease, 0, mbase + 50, "f");
+    openFile = webgui.addButtons(btns7[5], &onButtonRelease, 0, mbase + 50, "f");
     STACK;
     if (menuState == SYNTHSETTINGS)
     {
@@ -58,7 +63,7 @@ void websetup()
             outmen = "_sample_";
         if (actsb == subFADSR || actsb == subAADSR)
             outmen = "_adsr_";
-        webgui.setMonitor(sframe, outmen);
+        websetMonitor(sframe, outmen);
         smen = webgui.addStringDisplay("paras", 450, mbase, "f");
         sb->orp = -1;
         STACK;
@@ -77,28 +82,28 @@ void websetup()
             String outmen = " <style>  table td  {  font-size : 16px; } </style> ";
             outmen += "<t1 style=\" text-align : left;\">Targets</t1> ";
             outmen += ts->setMenu();
-            webgui.setMonitor(target, outmen);
+            websetMonitor(target, outmen);
             ts->createControl(__CALLER__);
             lastXPos = 250;
         }
         men = webgui.addStringDisplay("Menu", 200 + lastXPos, 90, "f");
     }
-    webgui.setMonitor(men, "Hello, me TMS");
+    websetMonitor(men, "Hello, me TMS");
     if (selitem < 0)
         FDBG("selitem error " + __CALLER__);
     if (menuState == SHOWSCALE || menuState == SCALES)
     {
- //       for (int i = 0; i < 84; i++)
- //           FDBG(SN(i) + scales[i]);
+        //       for (int i = 0; i < 84; i++)
+        //           FDBG(SN(i) + scales[i]);
         scaleid = webgui.addOptions("Scale", 84, (String *)scales, &onOptionSelect, 210, 120, scidtoix(g_scid), "title");
         baseid = webgui.addOptions("Basenote", 12, midiNamesFlat, &onOptionSelect, 400, 120, scalebase, "title");
         idt = webgui.addStringDisplay("Scales", 0, 200, "f");
         STACK;
-        webgui.setMonitor(idt, noteLine(true));
+        websetMonitor(idt, noteLine(true));
         inleds[3] = webgui.addStringDisplay("MIDI IN", 250, tbase - 50, "title", "monframe");
         inleds[7] = webgui.addStringDisplay("scaled", 550, tbase - 50, "title", "monframe");
     }
-    //   webgui.setMonitor(bgitem, "Hello _bg_");
+    //   websetMonitor(bgitem, "Hello _bg_");
     else if (menuState == MAPPINGS || menuState == SHOWMAP)
     {
         int posx = 0;
@@ -119,13 +124,13 @@ void websetup()
     }
     else if (menuState == MAIN)
     {
-        webgui.setMonitor(selitem, "_main_<t3>The MIDI Sidekick/t3>");
+        websetMonitor(selitem, "_main_<t3>The MIDI Sidekick/t3>");
         men = webgui.addStringDisplay("Menu", 200 + lastXPos, mbase, "f");
         if (!inimport)
         {
             showstat = webgui.addStringDisplay("Status", 10, 200 + 80, "f");
             inbuts[3] = webgui.addButtons("Rhythm/Settings", &onButtonRelease, 10, 150 + 80, "f", "hide");
-            webgui.setMonitor(showstat, "Status");
+            websetMonitor(showstat, "Status");
         }
     }
     if (menuState == MAIN || menuState == MAPPINGS)
@@ -151,45 +156,54 @@ void websetup()
         //   webgui.addSwitches(createTable(sw, 5), 5, sws, &onSwitches, 430, 350);
     }
     else if (menuState == TOUCH || (menuState >= EXTSETTINGS && menuState <= TARGETS))
-        webgui.setMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_target_");
+        websetMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_target_");
     else if (menuState == EXTERNALS)
-        webgui.setMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_extern_");
+        websetMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_extern_");
     else if (menuState == SETTINGS)
     {
         if (selitem == -1)
             selitem = webgui.addStringDisplay("<t3>TMS</t3>", 0, 0, "f", "nomonitor");
         STACK;
-        webgui.setMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_set_");
-        actpatid = webgui.addSwitches("use #", 1, actpat, &onSwitches, 0, 450, "t", "nomonitor");
+        websetMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>_set_");
+        actpatid = webgui.addSwitches("edit", 1, actpat, &onSwitches, 0, 450, "t", "nomonitor");
         //       FDBG("actpatopt " + SN(actpatopt) + " " + SN(actpattern));
         //        midiopt = webgui.addOptions("Note", 127, midiNamesLong, &onOptionSelect, 0, 650, triggerNote[actpattern], "title");
+        actgrpopt = webgui.addOptions("Goto", 4, pcount, &onOptionSelect, 0, 480, 0, "title");
         inleds[3] = webgui.addStringDisplay("MIDI IN", 0, 300, "title", "monframe");
         sipm = webgui.addButtons("MIDI", 5, btnss, &onButtonRelease, 1050, mbase, "title");
-        movenext[0] = webgui.addButtons(moveBtn[0], &onButtonRelease, 60, 500, "f");
-        movenext[1] = webgui.addButtons(moveBtn[1], &onButtonRelease, 100, 500, "f");
-        movenext[2] = webgui.addButtons(moveBtn[2], &onButtonRelease, 60, 550, "f");
-        movenext[3] = webgui.addButtons(moveBtn[3], &onButtonRelease, 110, 550, "f");
-        movenext[4] = webgui.addButtons(moveBtn[5], &onButtonRelease, 100, 430, "f");
-        movenext[5] = webgui.addButtons(moveBtn[6], &onButtonRelease, 100, 600, "f");
-        movenext[6] = webgui.addButtons(moveBtn[4], &onButtonRelease, 0, 550, "f");
-        movenext[7] = webgui.addButtons(moveBtn[7], &onButtonRelease, 30, 550, "f");
-        //        movenext[8] = webgui.addButtons(moveBtn[8], &onButtonRelease, 30, 600, "f");
+        movenext[0] = webgui.addButtons(moveBtn[0], &onButtonRelease, 40, 600, "f");  //  set Block
+        movenext[1] = webgui.addButtons(moveBtn[1], &onButtonRelease, 100, 500, "f"); // next
+        movenext[2] = webgui.addButtons(moveBtn[2], &onButtonRelease, 100, 550, "f"); // prev
+        movenext[3] = webgui.addButtons(btns7[6], &onButtonRelease, 0, 200, "f");     // insert
+        movenext[4] = webgui.addButtons(moveBtn[5], &onButtonRelease, 100, 450, "f"); // voice up
+        movenext[5] = webgui.addButtons(moveBtn[6], &onButtonRelease, 100, 600, "f"); // voice dwn
+        movenext[6] = webgui.addButtons(moveBtn[4], &onButtonRelease, 0, 550, "f");   // mark left
+        movenext[7] = webgui.addButtons(moveBtn[7], &onButtonRelease, 30, 550, "f");  // mark right
+        movenext[8] = webgui.addButtons(btns7[2], &onButtonRelease, 0, 600, "f");     // save
+        movenext[9] = webgui.addButtons(moveBtn[9], &onButtonRelease, 60, 550, "f");  // delete
         patternidt = webgui.addStringDisplay("Pattern #", 400, 380, "f");
         ccpatternidt = webgui.addStringDisplay("Pattern #", 200, 400, "f");
         ccvpatternidt = webgui.addStringDisplay("Pattern #", 400, 400, "f");
-        patternidt2 = webgui.addStringDisplay("Pattern #", 35, 705, "f");
+        patternidt2 = webgui.addStringDisplay("Pattern #", 35, 725, "f");
         ccidt = webgui.addStringDisplay("", 600, 380, "f");
         keyidt = webgui.addStringDisplay("", 25, 730, "f");
         beatidt = webgui.addStringDisplay("", 25, 750, "f");
         nltidt = webgui.addStringDisplay("", 30, 675, "f");
-        if (patvoicelow[4 * (actpattern / 4)][actgrp] < MAXVOI - 4)
-            startvoice = patvoicelow[4 * (actpattern / 4)][actgrp];
-
+        for (int v = 0; v < 4; v++)
+        {
+            int ypos = 450 + (v)*50;
+            voiceidt[v] = webgui.addStringDisplay("", 180, ypos, "f");
+            for (int i = 0; i < 2; i++)
+            {
+                patidt[v][i] = webgui.addStringDisplay("Rhythm", 1000 + i * 150, ypos - 10, "f");
+                //                FDBG(SN(v) + SN(i) + SN(patidt[v][i]));
+            } //       FDBG("ap " + SN(ap) + " " + SN(beatlength * numq) + " " + SN(beatlength) + " " + SN(numq));
+        }
         STACK;
-        update_pat();
+        update_pat(true);
     }
     else
-        webgui.setMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>");
+        websetMonitor(selitem, "<t3>" + Menus[menuState]->items[0] + "</t3>");
     //  DBG("menustate " + SN(menuState));
     if (menuState == MAIN || menuState == TOUCH || (menuState >= EXTSETTINGS && menuState <= TARGETS))
     {
@@ -221,7 +235,7 @@ void websetup()
                 centery[l + 3] += 30;
             }
         }
-        webgui.setMonitor(idt, showConnections());
+        websetMonitor(idt, showConnections());
         for (int l = 0; l < 3; l++)
         {
             outleds[l] = webgui.addStringDisplay(paranamemidi[l + 3], 850, fbase + l * mbase, "title");
@@ -258,32 +272,28 @@ void websetup()
     {
         int off = 200;
         int offb = 240;
-        int i = 0;
+
         int y = 120;
-        int m = 0;
-        menuId[m++] = webgui.addButtons("Joystick X", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        idjx = webgui.addNeedleIndicator("Joystick X", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Joystick Y", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        idjy = webgui.addNeedleIndicator("Joystick y", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Potentiometer 1", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        idt1 = webgui.addNeedleIndicator("Potentiometer 1", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Potentiometer 2", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        idt2 = webgui.addNeedleIndicator("Potentiometer 2", 0, 1024, off + 200 * i++, y, "f");
-        i = 0;
-        y = 350;
-        menuId[m++] = webgui.addButtons("Pedal 1", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        cped = webgui.addNeedleIndicator("Pedal 1", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Pedal 2", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        cped2 = webgui.addNeedleIndicator("Pedal 2", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("FSR", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        FDBG("FSR " + SN(m - 1) + ":" + SN(menuId[m - 1]));
-        cfsr = webgui.addNeedleIndicator("FSR", 0, 1024, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Hi-Res Encoder", &onButtonRelease, offb + 200 * i, y - 30, "f", "hide");
-        FDBG("HR " + SN(m - 1) + ":" + SN(menuId[m - 1]));
-        chr = webgui.addNeedleIndicator("Hi-Res Encoder", 0, 10000, off + 200 * i++, y, "f");
-        menuId[m++] = webgui.addButtons("Switch", &onButtonRelease, offb + 200 * i - 50, 250, "f", "hide");
-        csw = webgui.addStringDisplay("Switch", offb + 200 * i - 50, 280, "f", "hide");
-        FDBG("SW " + SN(m - 1) + ":" + SN(menuId[m - 1]));
+
+        for (int i = JOY_X, m = 0, j = 0; i <= EXT_SWITCH; i++, m++, j++)
+        {
+            String name = Menus[EXTERNALS]->items[i + 1 - EXTSETTINGS];
+            FDBG(name);
+            if (i == EXT_PED_1)
+            {
+                j = 0;
+                y = 350;
+            }
+            if (i == EXT_SWITCH)
+            {
+                y = 280;
+                extId[i] = webgui.addStringDisplay(name, offb + 200 * j - 50, y, "f", "hide");
+                offb -= 50;
+            }
+            else
+                extId[i] = webgui.addNeedleIndicator(name, 0, 1024, off + 200 * j, y, "f");
+            menuId[m] = webgui.addButtons(name, &onButtonRelease, offb + 200 * j, y - 30, "f", "hide");
+        }
     }
     if (menuState == TOUCH)
     {
@@ -294,8 +304,8 @@ void websetup()
         z2 = webgui.addStringDisplay("lp", 440, y - 15, "f");
         //       String lp = "<img src = \"img/touch.png\" alt = \"touch\">";
         //       String ld = "<img src = \"img/disp.png\" alt = \"touch\">";
-        //       webgui.setMonitor(z1, lp);
-        //       webgui.setMonitor(z2, ld);
+        //       websetMonitor(z1, lp);
+        //       websetMonitor(z2, ld);
     }
     Menus[menuState]->createControl(__CALLER__);
     if (menuState != MAIN && menuState != EXTERNALS)
@@ -306,6 +316,7 @@ void webloop()
     static int mstate = -1;
     static int oldsb = -1;
     static String ooled = "";
+
     String outmen = "<style>table td  {  font-size : 16px; } </style> ";
     if (!client.connected())
     {
@@ -316,80 +327,95 @@ void webloop()
     if (!client.connected())
         return;
     //
-    int actsb = ((MenuSynth *)MenuPara::SynthMenu)->actSubmenu;
+    //    osb = -1;
     webgui.update();
-    if (menuState == SYNTHSETTINGS && refresh)
-    {
-        //       FDBG("refresh " + SB(refresh));
-        websetup();
-        oldsb = actsb;
-        refresh = false;
-    }
-    else if (mstate != menuState || actsb != oldsb)
+    int actsb = ((MenuSynth *)MenuPara::SynthMenu)->actSubmenu;
+    if (refresh || menuState != mstate)
     {
         websetup();
+        oldsb = -1;
+    }
+    refresh = false;
+
+    if (menuState == SYNTHSETTINGS)
+    {
+        if (oldsb != actsb)
+        {
+ //           FDBG("actsb " + SN(actsb) + SN(oldsb));
+            websetup();
+            SubMenu *sb = ((MenuSynth *)MenuPara::SynthMenu)->submenus[actsb];
+            String name = sb->Paras[sb->myID]->name;
+            if (name != "Presets")
+                ((MenuSynth *)MenuPara::SynthMenu)->setMonitor();
+            else
+                webgui.remove(men);
+            websetMonitor(selitem, "<t3>" + name + "</t3>");
+        }
         oldsb = actsb;
     }
-    if (menuState == MAIN || menuState == TOUCH || (menuState >= EXTSETTINGS && menuState <= TARGETS))
+    else if (menuState == MAIN || menuState == TOUCH || (menuState >= EXTSETTINGS && menuState <= TARGETS))
     {
         for (int l = 0; l < 3; l++)
-            webgui.setMonitor(inleds[l], incoming[l] ? redled : offled);
+            websetMonitor(inleds[l], incoming[l] ? redled : offled);
         for (int l = 0; l < 7; l++)
         {
             bool state = outgoing[l] ? HIGH : LOW;
             if (l != 4 && l != 5)
-                webgui.setMonitor(outleds[l], state ? redled : offled);
+                websetMonitor(outleds[l], state ? redled : offled);
             else
-                webgui.setMonitor(outleds[l], outgoing[l]);
+                websetMonitor(outleds[l], outgoing[l]);
         }
-        webgui.setMonitor(inleds[3], MIDIinData);
-        webgui.setMonitor(outleds[8], outData);
+        websetMonitor(inleds[3], MIDIinData);
+        websetMonitor(outleds[8], outData);
         isMap = curMMS->sourceCH == curMMS->outCH && (Menus[SETTINGS]->procMode == 2 || Menus[SETTINGS]->procMode == 0);
         scaled = (scFP[SCALES] != 2047 && Menus[SETTINGS]->procMode == 1) && !curMMS->isTB;
 
         //        if (isMap)
         if (scaled)
-            webgui.setMonitor(inleds[7], outData);
+            websetMonitor(inleds[7], outData);
         else
-            webgui.setMonitor(inleds[6], outData);
+            websetMonitor(inleds[6], outData);
     }
 
     if (menuState == SHOWSCALE || menuState == SCALES)
     {
         if (mstate != menuState || refresh)
-            webgui.setMonitor(idt, noteLine(true));
+            websetMonitor(idt, noteLine(true));
         STACK;
-        webgui.setMonitor(inleds[7], outData);
-        webgui.setMonitor(inleds[3], MIDIinData);
+        websetMonitor(inleds[7], outData);
+        websetMonitor(inleds[3], MIDIinData);
         refresh = false;
     }
     else if (menuState == MAPPINGS || menuState == SHOWMAP)
     {
-        webgui.setMonitor(inleds[6], outData);
-        webgui.setMonitor(inleds[3], MIDIinData);
+        websetMonitor(inleds[6], outData);
+        websetMonitor(inleds[3], MIDIinData);
         if (mstate != menuState || refresh)
         {
-            STACK;
-            webgui.setMonitor(idt, noteLine(false));
-            webgui.setMonitor(idtg, grid);
+            //           FSTACK;
+            String nl = noteLine(false);
+            //            FDBG(nl);
+            websetMonitor(idt, nl);
+            websetMonitor(idtg, grid);
             refresh = false;
+            //          FSTACK;
         }
-        webgui.setMonitor(bp, ledstate[28] ? greenled : offled);
-        webgui.setMonitor(ledout, digitalRead(13) ? redled : offled);
-        webgui.setMonitor(semm, ledstate[32] ? whiteled : offled);
-        webgui.setMonitor(semp, ledstate[30] ? yellowled : offled);
-        webgui.setMonitor(octm, ledstate[36] ? blueled : offled);
-        webgui.setMonitor(octp, ledstate[34] ? redled : offled);
+        websetMonitor(bp, digitalRead(28) ? greenled : offled);
+        websetMonitor(ledout, digitalRead(13) ? redled : offled);
+        websetMonitor(semm, digitalRead(32) ? whiteled : offled);
+        websetMonitor(semp, digitalRead(30) ? yellowled : offled);
+        websetMonitor(octm, digitalRead(36) ? blueled : offled);
+        websetMonitor(octp, digitalRead(34) ? redled : offled);
     }
 
     else if (menuState == MAIN)
     {
-        webgui.setMonitor(bp, ledstate[28] ? greenled : offled);
-        webgui.setMonitor(ledout, digitalRead(13) ? redled : offled);
-        webgui.setMonitor(semm, ledstate[32] ? whiteled : offled);
-        webgui.setMonitor(semp, ledstate[30] ? yellowled : offled);
-        webgui.setMonitor(octm, ledstate[36] ? blueled : offled);
-        webgui.setMonitor(octp, ledstate[34] ? redled : offled);
+        websetMonitor(bp, digitalRead(28) ? greenled : offled);
+        websetMonitor(ledout, digitalRead(13) ? redled : offled);
+        websetMonitor(semm, digitalRead(32) ? whiteled : offled);
+        websetMonitor(semp, digitalRead(30) ? yellowled : offled);
+        websetMonitor(octm, digitalRead(36) ? blueled : offled);
+        websetMonitor(octp, digitalRead(34) ? redled : offled);
         String items[4] = {"Mode", "Octave", "Semitone", "Version"};
         String val[4] = {pmode[Menus[SETTINGS]->procMode], String(octave), SN(semiTone), "1.99"};
         String outmen = "";
@@ -413,39 +439,22 @@ void webloop()
             outmen += "</tr>";
         }
         outmen + "</table";
-        webgui.setMonitor(showstat, outmen);
-        webgui.setMonitor(sbp, offled);
+        websetMonitor(showstat, outmen);
+        websetMonitor(sbp, offled);
         if (transport == RECORDING)
-            webgui.setMonitor(sbp, redled);
+            websetMonitor(sbp, redled);
     }
     else if (menuState == EXTERNALS)
     {
-        String outmen = "";
-        webgui.setMonitor(cped, Menus[EXT_PED_1]->rawvalue);
-        webgui.setMonitor(cped2, Menus[EXT_PED_2]->rawvalue);
-        webgui.setMonitor(cfsr, Menus[FSR]->rawvalue);
-        webgui.setMonitor(chr, Menus[HIRES]->rawvalue);
-        webgui.setMonitor(idjx, Menus[JOY_X]->rawvalue);
-        webgui.setMonitor(idjy, Menus[JOY_Y]->rawvalue);
-        webgui.setMonitor(chr, Menus[HIRES]->rawvalue);
-        float fval = Menus[POTI_1]->rawvalue;
-        webgui.setMonitor(idt1, fval);
-        fval = Menus[POTI_2]->rawvalue;
-        webgui.setMonitor(idt2, fval);
-        webgui.setMonitor(csw, Menus[EXT_SWITCH]->rawvalue > 0 ? redled : offled);
         Menus[EXTERNALS]->displayMenu(__CALLER__);
     }
     else if (menuState == SETTINGS)
     {
+        websetMonitor(inleds[3], midiNamesLong[mettrigger]);
         if (metison)
         {
-            STACK;
-            webgui.setMonitor(inleds[3], SN(patcnt + 1) + "/" + midiNamesLong[mettrigger]);
-            showStatus(patcnt);
-            STACK;
+            showStatus(patcnt, true);
         }
-        else
-            webgui.setMonitor(inleds[3], SN(actpattern + 1) + "/" + midiNamesLong[mettrigger]);
     }
     else if (menuState == TOUCH)
     {
@@ -460,7 +469,7 @@ void webloop()
         zoneDisp += showLine(10, 260, 366, 260, 3);
 
         zoneDisp += "</svg>";
-        webgui.setMonitor(zone, zoneDisp);
+        websetMonitor(zone, zoneDisp);
     }
 
     if (menuState != SYNTHSETTINGS)
@@ -478,28 +487,15 @@ void webloop()
                 {
                     String name = "TM Sidekick";
                     //                  outmen += "<t1 style=\" text-align : left;\">" + Menus[menuState]->items[0] + "</t1> ";
-                    webgui.setMonitor(selitem, "<t5>" + name + "</t5>_main_");
+                    websetMonitor(selitem, "<t5>" + name + "</t5>_main_");
                     //                   Menus[menuState]->setMenu();
                 }
                 //               Menus[menuState]->setMenu();
             }
-            webgui.setMonitor(men, outmen);
+            websetMonitor(men, outmen);
         }
         else
             webgui.remove(men);
-    }
-    else
-    {
-        int actsb = ((MenuSynth *)MenuPara::SynthMenu)->actSubmenu;
-        SubMenu *sb = ((MenuSynth *)MenuPara::SynthMenu)->submenus[actsb];
-        String name = sb->Paras[sb->myID]->name;
-        if (name != "Presets")
-            ((MenuSynth *)MenuPara::SynthMenu)->setMonitor();
-        else
-            webgui.remove(men);
-        webgui.setMonitor(selitem, "<t3>" + name + "</t3>");
-        //#include "bg.h"
-        //       webgui.setMonitor(bgitem, bgsvg);
     }
 
     mstate = menuState;

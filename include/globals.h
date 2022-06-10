@@ -12,16 +12,17 @@ class Menu;
 class Parameter;
 int debug = 0;
 bool showflat = true;
-#define SN(x) String(x)+" "
+#define SN(x) String(x) + " "
 #define SB(x) String(x ? "t" : "f")
 #define SP(x) String((int)x, HEX)
 #define __NAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 #define __CALLER__ String(String(__LINE__) + " " + __NAME__)
+
 #define DBG(x)
 String history = "help";
 byte voices[128];
-// #define DBG(x)     
-// 	if (debug == 1) 
+// #define DBG(x)
+// 	if (debug == 1)
 // 	Serial.println(x)
 #define FDBG(x) \
 	Serial.println(x)
@@ -33,6 +34,9 @@ byte voices[128];
 #define STACK
 String MIDIinData;
 String outData;
+float g_xoff = 0.0;
+int oldsa = 0;
+
 class synPara
 {
 public:
@@ -130,9 +134,9 @@ enum synparatype
 	FILE_SAVE,
 	FILE_SAVE_NEW,
 };
-short pmstart[100];
-short pmend[100];
-short pmshape[100];
+EXTMEM short pmstart[100];
+EXTMEM short pmend[100];
+EXTMEM short pmshape[100];
 int lastXPos = 0;
 EXTMEM short guiid[1400];
 EXTMEM byte id2para[1400];
@@ -269,31 +273,31 @@ EXTMEM String perc[127] = {
 	"[Shekere] Shakings",
 };
 #endif
-	byte transposeit[32] = {
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
+byte transposeit[32] = {
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
 };
 bool progressmode = false;
 bool newmapmode = false;
@@ -488,11 +492,11 @@ EXTMEM String synthParas[] = {
 	"Sub Octave",
 	"Det Shape",
 	"Det Offset"};
-const String subMenus[NUM_SUBMENUS] = {"Modules", "Sample", "VCO", "VCF", "VCA", "FM", "PM", "FFM", "ADSR", "AM", "ADSR", "Wave", "Presets", "Portamento"};
+EXTMEM const String subMenus[NUM_SUBMENUS] = {"Modules", "Sample", "VCO", "VCF", "VCA", "FM", "PM", "FFM", "ADSR", "AM", "ADSR", "Wave", "Presets", "Portamento"};
 const signed char subParent[NUM_SUBMENUS] = {0, submod, submod, submod, submod, subVCO, subVCO, submod, submod, subVCA, subVCA, subVCO, submod, submod};
 #define FILE_SAVE_NEW +1
 #define SAMPLE1_PIN 40
-synPara *synparas[100];
+EXTMEM synPara *synparas[100];
 byte poly;
 Button *Buttons[10];
 // Chord *actChord;
@@ -509,7 +513,7 @@ int j3 = 0;
 EXTMEM Menu *Menus[NUM_MENUS];
 #include "blobs.h"
 EXTMEM String opts[100];
-const String scales[] = {
+EXTMEM const String scales[] = {
 	"12 Bar Blues",
 	"Lydian Dom.",
 	"Aeolian",
@@ -629,9 +633,10 @@ public:
 			starttime = millis();
 		_time = millis() - starttime;
 		//		_id = id;
-//		FDBG(show());
+		//		FDBG(show());
 	}
-	String show(){
+	String show()
+	{
 		return String(SN(_time) + " " + SN(_event) + " " + SN(_note) + " " + SN(_velocity));
 	}
 	byte _event;
@@ -640,9 +645,9 @@ public:
 	byte _channel;
 	int _time;
 	static int starttime;
-//	int _length = 0;
-//	short _id = 0;
-//	short on_id = -1;
+	//	int _length = 0;
+	//	short _id = 0;
+	//	short on_id = -1;
 };
 enum trans
 {
@@ -662,23 +667,23 @@ int nextEvent = 0;
 
 EXTMEM MidiEvent sequences[100000];
 const short scFP[] PROGMEM = {628, 874, 726, 677, 1228, 1498, 435, 1241, 1128, 2047,
-					  1882, 853, 822, 854, 594, 1705, 694, 437, 429, 1243,
-					  1238, 730, 198, 742, 876, 1254, 593, 1372, 1436, 101,
-					  561, 1706, 1434, 821, 697, 698, 693, 1644, 1388, 1642,
-					  1452, 938, 1450, 1381, 1382, 746, 874, 1386, 1370, 660,
-					  1563, 1682, 1992, 1299, 1306, 1306, 793, 1366, 851, 858,
-					  209, 1365, 1237, 1462, 825, 330, 596, 1209, 717, 729, 725,
-					  810, 338, 870, 348, 686, 683, 685, 617, 227, 870, 427, 461, 682};
+							  1882, 853, 822, 854, 594, 1705, 694, 437, 429, 1243,
+							  1238, 730, 198, 742, 876, 1254, 593, 1372, 1436, 101,
+							  561, 1706, 1434, 821, 697, 698, 693, 1644, 1388, 1642,
+							  1452, 938, 1450, 1381, 1382, 746, 874, 1386, 1370, 660,
+							  1563, 1682, 1992, 1299, 1306, 1306, 793, 1366, 851, 858,
+							  209, 1365, 1237, 1462, 825, 330, 596, 1209, 717, 729, 725,
+							  810, 338, 870, 348, 686, 683, 685, 617, 227, 870, 427, 461, 682};
 EXTMEM String wavenames[100];
 EXTMEM String presetnames[100];
 EXTMEM int patnames[500];
 EXTMEM String patvals[500];
 int maxsamples;
-byte lastmet[8] ={ 0,0,0,0,0,0,0,0};
-//String xmidiNames[12] = {"C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"};
+byte lastmet[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+// String xmidiNames[12] = {"C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"};
 String midiNamesSharp[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 String sel = "Note:";
-EXTMEM String midiNamesFlat[12] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+String midiNamesFlat[12] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 EXTMEM String midiNamesOptF[13] = {"note", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 EXTMEM String midiNamesOptS[13] = {"note", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 EXTMEM String midiNamesLong[128];
@@ -693,7 +698,6 @@ EXTMEM short onnotes[128];
 // short offnotes[128];
 byte xpos[12], firstnote;
 
-bool ledstate[100];
 Trill trillSensor;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI_SER);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, MIDI1);
@@ -766,15 +770,22 @@ byte scalebase = 0;
 bool scend = false;
 int clickc = 0;
 bool actpat[2];
-#define MAXPAT 64
+#define editMode actpat[0]
+#define MAXPAT 256
 #define MAXVOI 32
-#define MAXGRP 4
 String g_search;
-EXTMEM String patfiles[MAXPAT][MAXGRP];
-EXTMEM String patcolors[MAXPAT][MAXGRP];
-byte triggerNote[128];
-byte acttrigger[MAXPAT][MAXGRP];
+EXTMEM String patfiles[MAXPAT];
+
+EXTMEM short triggerNote[128];
+EXTMEM byte acttrigger[MAXPAT];
+EXTMEM short actbeatID[MAXPAT];
+EXTMEM String patcolors[MAXPAT];
+int sa = 0;
+int se;
+float g_xpos = 0;
+short actred=-1;
 short startvoice = -1;
+bool startOver = false;
 #define maxticks 12
 IntervalTimer metTimer;
 int numq = 1;
@@ -785,41 +796,45 @@ bool metisback = false;
 short patternc = -1;
 byte patcnt = 0;
 int actpattern = 0;
-int actgrp = 0;
 int startpattern = -1;
-EXTMEM short seqpattern[MAXPAT * maxticks][MAXVOI][MAXGRP];
+int lastpattern = -1;
+EXTMEM short seqpattern[MAXPAT * maxticks][MAXVOI];
+EXTMEM byte delaypattern[MAXPAT * maxticks];
+EXTMEM byte velpattern[MAXPAT * maxticks][MAXVOI];
 byte zerobase = 1;
 byte minstr[MAXVOI];
 byte mvelo[MAXVOI];
 
+byte oldtrigger = 0;
 bool seqswitch[maxticks];
-EXTMEM int patidt[MAXVOI][MAXPAT];
-int metopt[MAXVOI];
-int instopt[MAXVOI];
-int voiceidt[MAXVOI];
-int velopt[MAXVOI];
-int metid[MAXVOI];
+EXTMEM int patidt[4][2];
+int metopt[4];
+int instopt[4];
+int voiceidt[4];
+int velopt[4];
+int metid[4];
 byte beatlength = 4;
 void click(void);
 // String pout = "";
 bool beatstate = false;
 byte mettrigger = 24;
-int keyidt,beatidt,ccidt,nltidt;
+int keyidt, beatidt, ccidt, nltidt;
 short mbase = 100, ledbase = mbase + 40, sbase = 200 + 35, tbase = sbase + 15, fbase = tbase + 40, xbase = fbase + 20, base5 = xbase + 80, base6 = base5 + 20, base7 = base6 + 30, base8 = base7 + 50, base9 = base8 + 50, base10 = base9 + 50;
 int mtarget = 0;
 int centerx[10], centery[10];
-int ccopt,lastcc=0;
-byte ccvalopt=0,lastccval=0;
+int ccopt, lastcc = 0;
+byte ccvalopt = 0, lastccval = 0;
 int ccmetid;
-EXTMEM byte ccpattern[MAXPAT * maxticks][MAXGRP];
-EXTMEM byte ccval[MAXPAT * maxticks][MAXGRP];
-EXTMEM byte patvoicelow[MAXPAT][MAXGRP];
-EXTMEM byte patvoicehigh[MAXPAT][MAXGRP];
+EXTMEM byte ccpattern[MAXPAT * maxticks];
+EXTMEM byte ccval[MAXPAT * maxticks];
+EXTMEM byte patvoicelow[MAXPAT];
+EXTMEM byte patvoicehigh[MAXPAT];
 EXTMEM String counts[128];
+EXTMEM String pcount[4] = {"1", "17", "33", "49"};
 bool patset = false;
 long lastmill = 0;
 byte lastBeat = 0;
-EXTMEM byte beatCount[MAXPAT][MAXGRP];
+EXTMEM byte beatCount[MAXPAT];
 byte lastvoice = 0;
 int patternidt = 0;
 int patternidt2 = 0;
@@ -830,7 +845,7 @@ EXTMEM const String coloring[4] = {
 	"#66CDAA",
 	"#008B8B",
 	"#5F9EA0",
-	};
+};
 byte lastColor = 0;
 // **************************config *****************
 signed char lastMap = 0;
@@ -851,8 +866,8 @@ signed char s2index = 1;
 String wav1File;
 String wav2File;
 signed char preindex = -1;
-//signed char actPre = 0;
-//signed char recentPre = 0;
+// signed char actPre = 0;
+// signed char recentPre = 0;
 EXTMEM String scaleNames[2048];
 signed char contrast;
 int g_scid = 0;

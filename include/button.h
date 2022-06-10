@@ -102,8 +102,6 @@ public:
 		{
 			digitalWrite(outp, LOW);
 			digitalWrite(Buttons[cb]->outp, LOW);
-			ledstate[outp] = false;
-			ledstate[Buttons[cb]->outp] = false;
 		}
 		if (inc == 2)
 		{
@@ -128,7 +126,6 @@ public:
 			{
 				led = led - to;
 				digitalWrite(Buttons[cb]->outp, LOW);
-				ledstate[Buttons[cb]->outp] = false;
 				flash();
 			}
 		}
@@ -140,7 +137,6 @@ public:
 				//				if(debug==1)DBG("Time:" + String(to));
 				led = led - to;
 				digitalWrite(Buttons[cb]->outp, LOW);
-				ledstate[Buttons[cb]->outp] = false;
 				flash();
 			}
 		}
@@ -219,7 +215,6 @@ public:
 	bool flash()
 	{
 		digitalWrite(outp, output);
-		ledstate[outp] = output;
 		output = !output;
 		return (!output);
 	}

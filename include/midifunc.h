@@ -75,6 +75,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	if (curMMS->outCH > 0)
 		ch = curMMS->outCH;
 	_channel = ch;
+	//	FDBG(ch);
 	bool isTB = curMMS->isTB;
 	byte procMode = Menus[SETTINGS]->procMode;
 	isMap = curMMS->mapCH == channel && (procMode == 2 || procMode == 0);
@@ -88,35 +89,57 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	actMMS->sourceNote = note;
 	actMMS->SourceCC = 0;
 	actMMS->SourceVelocity = velocity;
-	//FDBG("note on: " + SN(note) + SB(scaled) + SN(scFP[SCALES]) + SN(procMode) + SN(curMMS->isTB));
-	if (actpat[0] && !metison)
+	// FDBG("note on: " + SN(note) + SB(scaled) + SN(scFP[SCALES]) + SN(procMode) + SN(curMMS->isTB));
+#define pattrig (triggerNote[mettrigger] - 1)
+#define patnote ( triggerNote[note] - 1)
+	if (editMode && !metison && transport == STOPPED)
 	{
-		if (triggerNote[note] < 128)
+		if (acttrigger[actpattern] < 255)
 		{
-			int oap = 4 * (triggerNote[note] % 16);
-			int oag = (triggerNote[note] / 16);
-			acttrigger[oap][oag] = 255;
+			acttrigger[patnote] = 255;
+			webgui.remove(actbeatID[patnote]);
 		}
-		triggerNote[note] = actpattern / 4 + 16 * actgrp;
-		acttrigger[actpattern][actgrp] = note;
+		triggerNote[note] = actpattern+1;
+		acttrigger[actpattern] = note;
+		if (actbeatID[pattrig] != -1)
+		{
+			webgui.remove(actbeatID[pattrig]);
+			actbeatID[pattrig] = -1;
+		}
+		if (actbeatID[triggerNote[note]] != -1)
+		{
+			webgui.remove(actbeatID[patnote]);
+			actbeatID[patnote] = -1;
+		}
 		mettrigger = note;
-//		FDBG("set trigger " + SN(actpattern) + " " + SN(note) + " " + SN(triggerNote[note]) + SN(acttrigger[actpattern][actgrp]));
-		showStatus(actpattern);
-		showKeys();
+		FDBG(" act id " + SN(pattrig) + SN(actbeatID[pattrig]) + SN(patnote) + SN(actbeatID[patnote]));
+		showStatus(actpattern, false);
 		return;
 	}
-	if (metison)
+
+	if (metison && triggerNote[note] != 255)
 	{
-		if (triggerNote[note] != 255)
+		if (actbeatID[pattrig] != -1)
 		{
-			mettrigger = note;
-			//			actpattern = 4*(triggerNote[note] % 16);
-			//			actgrp = triggerNote[note] / 16;
-			//			FDBG("mettrigger " + SN(triggerNote[note]));
-			//			if (triggerNote[note]/16==actgrp)
-			showKeys();
-			return;
+			webgui.remove(actbeatID[pattrig]);
+			actbeatID[pattrig] = -1;
 		}
+		if (actbeatID[patnote] != -1)
+		{
+			webgui.remove(actbeatID[patnote]);
+			actbeatID[patnote] = -1;
+		}
+		mettrigger = note;
+//		FDBG(" act id " + SN(pattrig) + SN(actbeatID[pattrig]) + SN(patnote) + SN(actbeatID[patnote]));
+		//		FDBG("call trigger " + SN(actpattern) + " " + SN(note) + " " + SN(triggerNote[note]) + SN(acttrigger[actpattern]));
+		//			actpattern = 4*(triggerNote[note] % 16);
+		//			actgroup = triggerNote[note] / 16;
+		//			FDBG("mettrigger " + SN(triggerNote[note]));
+		//			if (triggerNote[note]/16==actgroup)
+
+		//		if (menuState == SETTINGS)
+		//			showStatus(actpattern, false);
+		return;
 	}
 	if (procMode == 3)
 	{
@@ -148,7 +171,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 	}
 
 	curMMS->sourceNote = note;
-	#if 0
+#if 0
 	if (menuState == NEWSCALE && !isMap && isTB)
 	{
 		int no = note % 12;
@@ -212,7 +235,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 		}
 		return;
 	}
-	#endif
+#endif
 	if (!Menu::isRat)
 	{
 		//		printA4(midiNamesFlat[note % 12] + String((int)note / 12));
@@ -435,7 +458,7 @@ void actNoteOff(u_int8_t channel, u_int8_t note, u_int8_t velocity, MenuMidiSet 
 	{
 
 		STACK;
-		if (bid < 2048 && actChord != nullptr&&!(menuState == NEWMAP || newmapmode))
+		if (bid < 2048 && actChord != nullptr && !(menuState == NEWMAP || newmapmode))
 		{
 			FDBG("noff " + String(actChord->name));
 			actChord->noteOff();
@@ -480,10 +503,10 @@ void myAfterTouchPoly(unsigned char channel, unsigned char note, unsigned char v
 	if (!isChordend && (Menus[SETTINGS]->procMode < 3))
 	{
 		//		myTimer.end();
-//		FDBG("poly  " + SN(channel) + " " + SN(curMMS->mapCH) + " " + SB(isChordend));
+		//		FDBG("poly  " + SN(channel) + " " + SN(curMMS->mapCH) + " " + SB(isChordend));
 		STACK;
 		processChord(channel);
-//		STACK;
+		//		STACK;
 		isChordend = true;
 		return;
 	}
@@ -620,7 +643,7 @@ void usbSysEx(const uint8_t *data, uint16_t length, bool complete)
 	String out = SP(data[0]) + " ";
 	for (int i = 1; i < length; i++)
 		out += SP(data[i]) + " ";
-	FDBG(out);
+	//	FDBG(out);
 	if (USBMMS->targets->UMO)
 	{
 		usbMIDI.sendSysEx(length, data);

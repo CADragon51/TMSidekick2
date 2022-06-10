@@ -99,7 +99,7 @@ public:
 		{
 			int cc = map(rawvalue, 0, 1792, 0, 127);
 			float mapvalue = fmap(rawvalue, 0, 1792, 0, 1023);
-			targets->action(on, 2, channel, cc, 0, CC, __CALLER__, mapvalue, mapvalue);
+			targets->action(on, 2, channel, cc, cc, CC, __CALLER__, mapvalue, mapvalue);
 		}
 	}
 	void save(File frec)

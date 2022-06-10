@@ -220,6 +220,7 @@ boolean MD_MIDIFile::getNextEvent(void)
   // check if enough time has passed for a MIDI tick
   if ((ticks = tickClock()) == 0)
     return false;
+
   processEvents(ticks);
 
   return(true);
@@ -296,6 +297,7 @@ int MD_MIDIFile::load(const char *fname)
   // open the file for reading
   if (!_fd.open(_fileName, O_READ)) 
     return(E_NO_OPEN);
+
   // Read the MIDI header
   // header chunk = "MThd" + <header_length:4> + <format:2> + <num_tracks:2> + <time_division:2>
   {
@@ -310,7 +312,7 @@ int MD_MIDIFile::load(const char *fname)
       return(E_NOT_MIDI);
     }
   }
-  
+
   // read header size
   dat32 = readMultiByte(&_fd, MB_LONG);
   if (dat32 != 6)   // must be 6 for this header
@@ -341,7 +343,7 @@ int MD_MIDIFile::load(const char *fname)
     return(E_TRACKS);
   }
   _trackCount = dat16;
- 
+
   // read ticks per quarter note
   dat16 = readMultiByte(&_fd, MB_WORD);
   if (dat16 & 0x8000) // top bit set is SMTE format
@@ -363,17 +365,14 @@ int MD_MIDIFile::load(const char *fname)
   calcTickTime();  // we may have changed from default, so recalculate
 
   // load all tracks
- // _trackCount = 1;
-//  Serial.println("#tracks " + String(_trackCount));
-
-  for (uint8_t i = 0; i < _trackCount; i++)
+  for (uint8_t i = 0; i<_trackCount; i++)
   {
     int err;
 
     if ((err = _track[i].load(i, this)) != -1)
     {
-  //    _fd.close();
-  //    return((10*(i+1))+err);
+      _fd.close();
+      return((10*(i+1))+err);
     }
    }
 

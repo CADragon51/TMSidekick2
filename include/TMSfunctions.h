@@ -93,7 +93,6 @@ bool Button::checkButton(bool nocall)
                         nextEvent = 0;
                         String notes[16];
                         //                       digitalWrite(13, LOW);
-                        ledstate[13] = 0;
                         int nn = SplitS(seqOn, ',', notes, 16);
                         DBG(nn);
                         for (int n = 0; n < nn - 1; n++)
@@ -149,11 +148,11 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
     para = ((MenuPara *)Menus[menId[id]])->Paras[sp];
     if (para == nullptr)
     {
-        FDBG(SP(para) + " " + SN(sp) + " " + SN(menId[id]));
+ //       FDBG(SP(para) + " " + SN(sp) + " " + SN(menId[id]));
         return;
     } // Serial.println("myID =" + SN(((MenuPara *)Menus[menId[id]])) + " -> " + SN(para->name));
 
-    FDBG(para->name + " " + SN(type) + " " + SN(sp) + " " + SN(value) + para->dumpValue());
+ //   FDBG(para->name + " " + SN(type) + " " + SN(sp) + " " + SN(value) + para->dumpValue());
     STACK;
     switch (type)
     {
@@ -165,8 +164,8 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
             *para->tvalue = value;
         else
             para->fvalue = value;
-        FDBG(para->name + " " + SN(type) + " " + SN(sp) + " " + SN(value) + para->dumpValue());
-        webgui.setMonitor(id - 1, para->format());
+//        FDBG(para->name + " " + SN(type) + " " + SN(sp) + " " + SN(value) + para->dumpValue());
+        websetMonitor(id - 1, para->format());
         STACK;
         if (para->name == "BPM")
         {
@@ -188,8 +187,13 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
         {
             *para->value = value + 1;
             //           FDBG(para->name + " " + SN(*para->value));
-            showKeys();
-            showStatus(actpattern);
+            for (int i = 0; i < MAXPAT; i++)
+            {
+                if (actbeatID[i] != -1)
+                    webgui.remove(actbeatID[i]);
+                actbeatID[i] = -1;
+            }
+            showStatus(actpattern, false);
         }
         if (para->name == "Scale")
             Menus[SCALES]
@@ -209,7 +213,7 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
     case CHECKBOX:
         DBG(SN(id) + " switched " + SN(sp) + " " + para->name);
         *para->value = swval;
-        webgui.setMonitor(idt, showConnections());
+        websetMonitor(idt, showConnections());
         break;
     }
     STACK;
@@ -258,7 +262,7 @@ void MenuTargetSet::createControl(String caller)
         int ret = webgui.addNumericDisplay(name, posx + j * 80 + 65, posy + 200, "f", "nomonitor");
         Paras[i]->monid = ret;
 
-        webgui.setMonitor(ret, Paras[i]->format());
+        websetMonitor(ret, Paras[i]->format());
         webgui.remove(guiid[maxg]);
         guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vv, &onSlider, posx + j * 80, posy, "title", "controlx");
         if (guiid[maxg] == -1)

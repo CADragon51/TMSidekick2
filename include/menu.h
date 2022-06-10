@@ -8,6 +8,8 @@
 #include <chord.h>
 #include "Webgui.h"
 extern Webgui webgui; // initialize an instance of the class
+extern void callwebsetMonitor(int id, String s, String caller);
+#define websetMonitor(i, s) callwebsetMonitor(i, s, __CALLER__)
 extern EthernetClient client;
 extern IPAddress server;
 extern int scidtoix(int sc);
@@ -1033,7 +1035,7 @@ public:
 	}
 	String setMenu(void)
 	{
-		FDBG(__CALLER__ + " " + SN(myID));
+//		FDBG(__CALLER__ + " " + SN(myID));
 		//		if (myID == omyId && !force)
 		//			return "";
 		// omyId = myID;

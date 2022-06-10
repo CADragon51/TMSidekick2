@@ -5,6 +5,8 @@ float fmap(float x, float in_min, float in_max, float out_min, float out_max);
 signed char readrec(File frec);
 //#include "SSD1309AsciiSpi1.h"
 // extern SSD1309AsciiSpi1 oled;
+extern short extId[30];
+extern String redled, offled;
 class MenuExtSet : public MenuPara
 {
 public:
@@ -67,7 +69,7 @@ public:
 			calibrate->items[0] = "Cal." + items[0];
 		}
 		targets->setName(items[0] + "->");
-//		FDBG("target " + SN(targets->me) + " " + targets->name);
+		//		FDBG("target " + SN(targets->me) + " " + targets->name);
 		rawvalue = 0;
 #endif
 	}
@@ -81,7 +83,7 @@ public:
 		byte notefrom = extNote;
 		byte noteto = toextNote;
 		//		Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String((int)extPing) + " Switch " + String((int)myButton));
-//		STACK;
+		//		STACK;
 		if (Analog)
 		{
 
@@ -100,12 +102,12 @@ public:
 				if (rawvalue > emax)
 					emax = rawvalue;
 				byte sNote = imap(rawvalue, emin, emax, notefrom, noteto);
-				byte mapvalue = imap(rawvalue, emin, emax,0, 127);
+				byte mapvalue = imap(rawvalue, emin, emax, 0, 127);
 				//					if (aPin == A15)
 				//							if(debug==1)Serial.println(String(myID) + " Probe " + String(extNote) + " Analog " +  String(rawvalue));
 				//					if(debug==1)Serial.println(targets->SynthPara);
 				targets->action(on, eventtype, extCh, sNote, mapvalue, extCC, __CALLER__, rawvalue, mapvalue);
-//				STACK;
+				//				STACK;
 				eventtype = 4;
 			}
 		}
@@ -134,6 +136,9 @@ public:
 		if (myButton)
 		{
 			bool res = myButton->checkButton();
+			if (menuState == EXTERNALS)
+				webgui.setMonitor(extId[me + EXTSETTINGS], res ? redled : offled);
+
 			if (myButton->hasChanged)
 			{
 				//				FDBG(SB(res));
@@ -259,10 +264,14 @@ public:
 #endif
 #if 1
 		static float ov = 0;
-		if (fabs(ov - rawvalue)<10)
+		if (fabs(ov - rawvalue) < 10)
 			return;
-//		STACK;
+		//		STACK;
 		ov = rawvalue;
+		if (menuState == EXTERNALS)
+		{
+			webgui.setMonitor(extId[me+EXTSETTINGS], rawvalue);
+		}
 		if (targets->SynthPara)
 		{
 			byte pn = targets->SynthPara;
@@ -292,12 +301,12 @@ public:
 				}
 				return;
 			}
-			}
+		}
 #endif
 		if (eventtype != 4)
 		{
 			//			if(debug==1)Serial.println("Probe " + String(aPin) + " Analog " + String((int)Analog) + " Ping " + String(extNote) + " Switch " + String(rawvalue));
-//			STACK;
+			//			STACK;
 			targets->action(on, eventtype, extCh, extNote, vel[velocity], extCC, __CALLER__, mapvalue);
 		}
 	}

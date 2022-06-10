@@ -55,7 +55,6 @@ for (int i = 0; i < 6; i++)
 DBG("Leds OK");
 display.setTextColor(1, 0);
 digitalWrite(13, LOW);
-ledstate[13] = 0;
 
 AudioInterrupts();
 pinMode(buttonPin, INPUT_PULLUP);

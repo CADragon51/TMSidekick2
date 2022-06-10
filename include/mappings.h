@@ -75,7 +75,7 @@ int loadDirectory(File dir, String search, String ldir = "", bool sel = false)
   bool isS = search.length() > 0;
   while (true)
   {
-    //   FDBG(dir.name());
+ //   FDBG(dir.name());
 
     File entry = dir.openNextFile();
     //  FDBG(__CALLER__);
@@ -89,7 +89,7 @@ int loadDirectory(File dir, String search, String ldir = "", bool sel = false)
     String sr = search;
     if (isS)
     {
- //     if (search.endsWith("*"))
+      //     if (search.endsWith("*"))
       {
         sr.replace("*", "").toLowerCase();
       }
@@ -98,27 +98,31 @@ int loadDirectory(File dir, String search, String ldir = "", bool sel = false)
     if (isS)
       fx = fn.substring(1).indexOf(sr.substring(1));
     //    FDBG(__CALLER__);
-   // Serial.println(fn + " " + sr + " " + SN(fx));
+    // Serial.println(fn + " " + sr + " " + SN(fx));
     if (fx >= 0 && !entry.isDirectory())
     {
       //    FDBG(sr + " " + SN(sr.length()) + " " + fn);
       String netr = fn;
-      if (isS&&search.indexOf(".")==-1)
+      if (isS && search.indexOf(".") == -1)
         netr = fn.substring(sr.length() + 1);
       String size = SN((int)entry.size());
       if (String(entry.name()).endsWith(".mid"))
       {
         int v = 0;
- //       FDBG(ldir + "/" + entry.name());
+        //       FDBG(ldir + "/" + entry.name());
         int bc = sizeMIDI(ldir + "/" + entry.name(), v);
         size = String(bc) + "/" + String(v);
       }
       dirout += "  " + netr + size + "~";
-      if (n < 256)
-        res[n] = netr+"#"+size;
+ //     FDBG(netr + SN(netr.indexOf("/")));
+      if (n < 256 && netr.indexOf("/") == -1)
+      {
+        res[n] = netr + "#" + size;
+ //       FDBG(SN(n) + res[n]);
+      }
       n++;
     }
-    if (entry.isDirectory()&&sr.indexOf(".")==-1)
+    if (entry.isDirectory() && sr.indexOf(".") == -1)
     {
       //      FDBG(__CALLER__);
       cd = ldir + "/" + entry.name();
@@ -196,11 +200,11 @@ void printDirectory(File dir, int numTabs)
     }
     if (uf.endsWith(".PAT") && pwx < 99 && uf.substring(0, 1) == "P")
     {
-//      FDBG(nf);
+      //      FDBG(nf);
       File myFile = SD.open(nf.c_str());
       //      File myFile = SD.open(argv[1].c_str());
       String more = "";
-//      FDBG(nf + " " + SP(myFile));
+      //      FDBG(nf + " " + SP(myFile));
       if (myFile)
       {
         STACK;

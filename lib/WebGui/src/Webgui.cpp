@@ -10,6 +10,7 @@ extern int commidx;
 extern int bitidx;
 extern char bitstream[1000000];
 EXTMEM action_generic_t act[1000];
+EXTMEM String lastout[1000];
 // define GUISTACK Serial.println(__LINE__)
 #define GUISTACK
 Webgui::Webgui()
@@ -212,152 +213,6 @@ void Webgui::_callAction(int id)
 	}
 }
 
-#if 0
-void Webgui::update()
-{
-	if (!this->connected())
-	{
-		if (!this->_connect())
-		{
-			return;
-		}
-	}
-	while (_ethernetclient->available())
-	{
-		char c = _ethernetclient->read();
-		//		inputstream += c;
-		if (c == ':')
-			colidx = bitidx;
-		if (fq == 0 && c == '`')
-			fq = bitidx;
-		if (c == ',')
-			commas[commidx++] = bitidx;
-		if (commidx<2)
-			Serial.print(c);
-		if (c != '\n'&&c!='`')
-			bitstream[bitidx++] = c;
-		if (fq > 0 && c == '`')
-		{
-			eq = bitidx;
-			//			break;
-		}
-	}
-	//	Serial.println();
-	if (bitidx&&0)
-	{
-		bitstream[bitidx]=0;
-		Serial.println(bitstream);
-		bitstream[colidx] = 0;
-		Serial.print(bitidx);
-		Serial.print(" ");
-		Serial.print(commidx);
-		Serial.print(" ");
-		Serial.print(colidx);
-		Serial.print(" ");
-		Serial.print(fq);
-		Serial.print(" ");
-		Serial.print(eq);
-		Serial.print(" ");
-		for (int i = 0; i < commidx; i++)
-		{
-			Serial.print(commas[i]);
-			Serial.print(" ");
-		}
-		Serial.println();
-	}
-	if (bitidx > 0 && (eq + fq == 0 || fq > 0))
-	{
-		bitstream[colidx] = 0;
-		if (!strcmp(bitstream, "ACTION"))
-		{
-			this->_analyzeStream();
-			colidx = 0;
-			fq = 0;
-			eq = 0;
-			commidx = 0;
-			bitidx = 0;
-		}
-	}
-}
-EXTMEM String value;
-void Webgui::_analyzeStream()
-{
-	int lc = colidx + 1;
-	String para[20];
-	for (int i = 0; i < commidx; i++)
-	{
-		bitstream[commas[i]] = 0;
-
-		//		Serial.println(SN(i) + " " + String(bitstream + lc));
-		para[i] = String(bitstream + lc);
-		lc = commas[i] + 1;
-	}
-
-	int sid = para[0].toInt();
-
-	//		inputstream.replace("`", "");
-	//		Serial.println("inp " + para[1]);
-	//		if (inputstream.substring(0, 1) == "`")
-	//			inputstream = inputstream.substring(1, inputstream.length() - 1);
-	//		Serial.println(String(sid) + "#" + inputstream);
-	if (bitidx < 100)
-	{
-		if (fq)
-			value = String(bitstream + fq );
-		else
-			value = String(bitstream + commas[0]+1 );
-//		Serial.println(value);
-	}
-	else
-		value = "###";
-	this->_callAction(sid);
-}
-
-void Webgui::_callAction(int id)
-{
-	//	Serial.println(String(id) + "#" + value + " " + String(mousedownaction ? "y" : "n"));
-	int valueInt = value.toInt();
-	float valueFloat = value.toFloat();
-	{
-		for (int i = 0; i < numactions; ++i)
-		{
-			if (id == actionsList[i])
-			{
-				if (act[id].type == INTEGER)
-				{
-					((CallbackTypeInt)act[id].fnAction)(valueInt, id);
-					return;
-				}
-				else if (act[id].type == FLOAT)
-				{
-					Serial.println(valueFloat);
-					((CallbackTypeFloat)act[id].fnAction)(valueFloat, id);
-					return;
-				}
-				else if (act[id].type == STRING)
-				{
-					((CallbackTypeCharp)act[id].fnAction)(value, id);
-					return;
-				}
-				if (act[id].type == BOOLEANS)
-				{
-					String res[30];
-					int numpipes = SplitS(value, '|', (String *)res, 30);
-					bool valueBoolp[30];
-					for (int boolindex = 0; boolindex < numpipes; boolindex++)
-					{
-						valueBoolp[boolindex] = false;
-						if (res[boolindex] == "on")
-							valueBoolp[boolindex] = true;
-					}
-					((CallbackTypeBoolp)act[id].fnAction)(valueBoolp, id);
-					return;
-				}
-			}
-		}
-	}
-}
-#endif
 void Webgui::_addAction(int id, unsigned char type, void *fnAction)
 {
 	if (numactions >= MAXACTIONS)
@@ -529,7 +384,7 @@ int Webgui::addInputAnalog(String name, float minvalue, float maxvalue, float de
 	{
 		defaultvalue = minvalue;
 		Serial.println("id error @" + String(__LINE__) + " " + name);
-//		return -1;
+		//		return -1;
 	}
 	name += "," + String(x) + "," + String(y) + "," + title + "," + classname;
 	CHECKCONNECTION(-1);
@@ -662,11 +517,26 @@ void Webgui::setMonitor(int id, float value)
 	_print(",");
 	_println(String(value));
 }
-void Webgui::setMonitor(int id, String value)
+
+void Webgui::setMonitor(int id, String value, byte type)
 {
+	// if (lastout[id] == value)
+	// {
+	// 	Serial.println(id);
+	// 	return;
+	// }
+	// lastout[id] = value;
+	if (id < 0 || id > idcounter)
+	{
+		Serial.println("invalid ID " + String(id));
+		return;
+	}
 	CHECKCONNECTION();
 	GUISTACK;
-	_print("SET_MONITOR:");
+	if (type == 0)
+		_print("SET_MONITOR:");
+	else
+		_print("SET_MONITOR" + String(type) + ":");
 	String sid;
 	sid = _idtostr(id);
 	_print(sid);

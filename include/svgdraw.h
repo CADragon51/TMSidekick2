@@ -177,22 +177,32 @@ int second = 0;
 
 EXTMEM String ltot[] = {"3t", "3s", "s", "3e", "s.", "e", "3q", "3q", "e.", "e.", "q", "q"};
 EXTMEM String erg[maxticks * 4];
+static String rests[16] = {"", ".", "..", "&#119103;",
+                           "&#119103;.", "&#119103;..", "&#119102;", "&#119102;.",
+                           "&#119102;..", "&#119102;&#119103;", "&#119102;&#119103;.", "%&#119103;..",
+                           "&#119101;", "&#119100;", "&#119100;.", "&#119099;"};
+
 String pat2string(int actpat, int v)
 {
     int pat = actpat;
     String pzero = "";
     int f1 = 48;
+    bool empty = true;
     STACK;
     if (v > -1)
     {
-        int pos = (actpattern / 4 + actpat) * 4 * maxticks;
+        //        int pos = (actpattern / 4 + actpat) * 4 * maxticks;
+        int pos = actpat * maxticks;
         //       FDBG("pos " + SN(pos) + " " + SN(actpattern) + " "+ SN(actpat));
-        for (int i = 0; i < maxticks * beatlength; i++)
+        String sv = "1";
+        for (int i = 0; i < maxticks * 2; i++)
         {
-            short val = seqpattern[i + pos][v][actgrp];
+            short val = seqpattern[i + pos][v];
             if (val > 0)
             {
-                val = 1;
+                //              FDBG("val " + SN(val) + SN(i + pos) + SN(v));
+                empty = false;
+                sv = "1";
                 if (i == 0)
                     f1 = 0;
                 else if (f1 == 48)
@@ -200,10 +210,10 @@ String pat2string(int actpat, int v)
                 //               FDBG("f1 " + SN(f1));
             }
             else
-                val = 0;
-            pzero += SN(val);
+                sv = "0";
+            pzero += sv;
         }
- //       FDBG("show metro " + SN(pos) + " " + SN(v) + " " + pzero+" "+SN(f1)+SN(actgrp));
+        //      FDBG(SN(actpat) + pzero);
     }
     else
     {
@@ -217,17 +227,20 @@ String pat2string(int actpat, int v)
                 pzero += "1";
                 if (f1 == 48 && i)
                     f1 = i;
+                empty = false;
             }
             else
                 pzero += "0";
         }
         //       FDBG(pzero);
     }
+    if (empty)
+        return rests[15] + "&nbsp;";
     int p = 0;
 
     p = SplitS(pzero, '1', erg, maxticks * 4);
-//    FDBG(pzero);
-//    FDBG(p);
+
+    //    FDBG(p);
     String rs = "";
     STACK;
     for (int i = 1; i < p; i++)
@@ -266,104 +279,224 @@ String pat2string(int actpat, int v)
         else
             f1 = 15;
     }
-    if(rs.length()>0)
-    rs.replace("3s3s3s", "3sss").replace("3e3e3e", "3eee").replace("3ssse", "3sss e");
-    static String rests[16] = {"", ".", "..", "&#119103;",
-                               "&#119103;.", "&#119103;..", "&#119102;", "&#119102;.",
-                               "&#119102;..", "&#119102;&#119103;", "&#119102;&#119103;.", "%&#119103;..",
-                               "&#119101;", "&#119100;", "&#119100;.", "&#119099;"};
+    if (rs.length() > 0)
+        rs.replace("3s3s3s", "3sss").replace("3e3e3e", "3eee").replace("3ssse", "3sss e");
+
     //    FDBG(pzero+" rest " + SN(f1));
     if (f1 > 0)
         rs = rests[f1] + "&nbsp;" + rs;
-//    FDBG("pat 2 string "+SN(pat) + " " + pzero + " " + SN(f1) + " " + rs);
+    //    FDBG("pat 2 string "+SN(pat) + " " + pzero + " " + SN(f1) + " " + rs);
     return rs;
 }
 byte checkKey(int p)
 {
-    return acttrigger[p][actgrp] < 128 ? acttrigger[p][actgrp] : 0;
+    byte ret = acttrigger[p] < 128 ? acttrigger[p] : 0;
+    //    if (ret > 0)
+    //        FDBG("key @" + SN(p) + SN(ret));
+    return ret;
 }
-#define patstate(x) beatCount[x][actgrp] == 0 ? "&#x25AF;" : "&#x25AE;"
-#define actstate(x) beatCount[x][actgrp] == 0 ? "&#x25C7;" : "&#x25C6;"
+#define patstate(x) beatCount[x] == 0 ? "&#x25AF;" : "&#x25AE;"
+#define actstate(x) beatCount[x] == 0 ? "&#x25C7;" : "&#x25C6;"
 //#define patkey(x) checkkey(x) ? "&#x251C;" : "&#x250B;"
 #define patkey(x) "&#x251C;"
+String openblock[2] = {"&#x2591; ", "&#x2588; "};
+String markleft[2] = {"&#x25B7;", "&#x25B6;"};
+String markright[2] = {"&#x25C1;", "&#x25C0;"};
+short kc = 0, bc = 0, oc = 0;
 
-void showStatus(int pos)
+String oblocks(int i, int b)
+{
+
+    String mb;
+    //    FDBG(SN(i) + SN(startpattern) + SN(lastpattern));
+    if (i == startpattern)
+        mb = markleft[b];
+    else if (i == lastpattern)
+        mb = markright[b];
+    else
+        mb = openblock[b];
+    if (b)
+        bc++;
+    else
+        oc++;
+    return mb;
+}
+float charsize[8] = {10, 8.345, 5.83, 4.5, 3.66, 3.1, 2.675, 2.36};
+String showFiles(int sp, float xpos, int &f)
+{
+
+    String nlt;
+
+    if (patfiles[sp] != "")
+    {
+        nlt = showText(patfiles[sp], 12 + xpos, 10 + (f++ % 2) * 13, "teeny");
+        //        FDBG(SN(sp) + patfiles[sp] +" "+ SN(xpos) + SN(f));
+    }
+    return nlt;
+}
+
+String actblock[2] = {"&#x25BD;", "&#x25BC;"};
+String markact[2] = {"&#x25C7;", "&#x25C6;"};
+String header1600 = " <svg height=\"50\" width=\"1600\">";
+void showStatus(int pos = actpattern, bool scroll = true)
 {
     String outblocks = "<span style =\"color:beige;font-size:20px;\">";
-    String inblocks = "<text style =\"color:red;font-size:20px;\">";
-    String markblocks = "<text style =\"color:#FFD700;font-size:20px;\">";
-    String open[2] = {"&#x25AF;", "&#x25AE;"};
-    String key[2] = {"&#x2503;", "&#x2503;"};
-    String act[2] = {"&#x25C7;", "&#x25C6;"};
-    int lastbeat = 0;
-    bool isOver = false;
-    for (int i = 0; i < MAXPAT; i++)
+    String markblocks = "<text style =\"color:gold;font-size:20px;\">";
+    String key = " |";
+    String nlt = header1600;
+    static int oldmid = -1;
+    //    bool isOver = false;
+    //  int lastbeat = 0;
+    float xpos = 0;
+    int ppos = pos;
+    kc = 0, bc = 0, oc = 0;
+
+    se = sa + 64;
+    if (ppos >= se)
     {
-        bool isBeat = (i % beatlength) == 0;
-        if (isBeat)
-            lastbeat = i;
-        int b = beatCount[lastbeat][actgrp] == 0 ? 0 : 1;
-        int k = checkKey(lastbeat) > 0 ? 1 : 0;
-        if (patfiles[i][actgrp] != "")
+        sa += ppos - se + 1;
+        se = sa + 64;
+    }
+    else if (ppos < sa)
+    {
+        sa = ppos;
+        se = sa + 64;
+    }
+    //    FDBG(SN(ppos) + SN(sa) + SN(se) + SN(oldsa) + SB(metison));
+    // if (isred > 0 && actbeatID[isred] != -1)
+    // {
+    //     webgui.remove(actbeatID[isred]);
+    //     actbeatID[isred] = -1;
+    // }
+
+    if (!metison || oldsa != sa || oldmid != mettrigger)
+    {
+        oldmid = mettrigger;
+        for (int i = 0; i < 256; i++)
+        {
+            if (actbeatID[i] != -1)
+            {
+                //                  FDBG(SN(i) + SN(actbeatID[i]));
+                webgui.remove(actbeatID[i]);
+                actbeatID[i] = -1;
+            }
+        }
+    }
+    //   FDBG(SN(sa) + SN(se) + SN(ppos) + SN(sa % beatlength));
+    oldsa = sa;
+    bool wasBlock = false;
+    int f = 0;
+    String beige = "beige";
+    String ocol = "";
+    String gold = "gold";
+
+    for (int sp = sa; sp < se; sp++)
+    {
+        //       int i = sp % 64;
+        bool isBeat = (sp % beatlength) == 0;
+        int b = beatCount[sp] == 0 ? 0 : 1;
+        if (beatlength == 1)
+            isBeat = false;
+        byte mid = checkKey(sp);
+        if (mid > 0 || isBeat || (sp % 2 == 0 && beatlength == 1))
+        {
+
+            int add = -2;
+            int butnr = sp / beatlength + zerobase;
+
+            if (actbeatID[sp] == -1)
+            {
+                String bn = String(butnr);
+                //               FDBG(SN(kc) + SN(oc) + SN(bc));
+                add = 37;
+                if (butnr > 9)
+                    add = 33;
+                xpos = (oc) * (23.3 - 6) + bc * (17.75 - 0.3) + kc * (14.5);
+                nlt += showFiles(sp, xpos, f);
+                if (mid)
+                {
+                    if (isBeat)
+                        bn = bn + "/ " + midiNamesFlat[mid % 12] + String(mid / 12);
+                    else
+                        bn = midiNamesFlat[mid % 12] + String(mid / 12);
+                }
+                if (mid != mettrigger || mettrigger == 0)
+                    actbeatID[sp] = webgui.addButtons(bn, &onButtonRelease, add + xpos, 700, "f", "hide");
+                else
+                {
+                    //                 FDBG(bn + " " + SN(sp) + SN(mid) + SN(mettrigger) + midiNamesLong[mid]);
+                    if (actbeatID[sp] > 0)
+                        webgui.remove(actbeatID[sp]);
+                    actbeatID[sp] = webgui.addButtons(bn, &onButtonRelease, add + xpos, 700, "f", "redhide");
+                }
+            }
+        }
+        if (patcolors[sp] == "")
+            patcolors[sp] = patcolors[sp-1];
+
+        if (b && (!wasBlock || ocol != patcolors[sp]))
         {
             outblocks += "</text><text style =\"color:" +
-                         patcolors[i][actgrp] + ";font-size:20px;\">";
-            //            FDBG(patcolors[i] + " " + patfiles[i] + " " + SN(i) + SN(i - lastbeat * 4) + SN(beatCount[i]));
-            isOver = true;
+                         patcolors[sp] + ";\">";
+            wasBlock = true;
+            ocol = patcolors[sp];
+            if (patcolors[sp]=="")
+                FDBG(sp);
         }
-        else if (!isOver)
+        if (!b && wasBlock)
         {
-            isOver = false;
-            outblocks += "</text><text style =\"color:beige;font-size:20px;\">";
+            //           FDBG(SN(i)+SN(g)+patcolors[i][g]);
+            outblocks += "</text><text style =\"color:" +
+                         beige + ";\">";
+            wasBlock = false;
         }
-        if (i >= 0 && i < pos)
-        {
-            if (isBeat)
-            {
-                if (actpat[0])
-                    inblocks += key[k];
-                else
-                    markblocks += key[k];
-            }
-            if (actpat[0])
-                inblocks += open[b];
-            else
-                markblocks += open[b];
-            continue;
-        }
-        if (isBeat && (i < startpattern || i > pos))
-        {
-
-            outblocks += key[0];
-        }
-        if (i == pos)
+        //       FSTACK;
+        if (sp >= 0 && sp < ppos && sp >= triggerNote[mettrigger] - 1)
         {
             if (isBeat)
             {
-                if (actpat[0])
-                    inblocks += key[k];
-                else
-                    markblocks += key[k];
+                //                 FDBG(SN(i) + SN(markblocks.length()));
+                markblocks += key;
+                kc++;
             }
-            if (actpat[0])
-            {
-                inblocks += act[b] + "</text>";
-                outblocks += inblocks;
-            }
-            else
-            {
-                markblocks += act[b] + "</text>";
-                outblocks += markblocks;
-            }
-
+            markblocks += oblocks(sp, b);
             continue;
         }
+        //        FSTACK;
 
-        outblocks += open[b];
+        if (sp == ppos)
+        {
+            if (isBeat)
+            {
+                //               FDBG(SN(i) + SN(markblocks.length()));
+                markblocks += key;
+                kc++;
+            }
+
+            markblocks += actblock[b] + "</text>";
+            if (!b)
+                oc++;
+            else
+                bc++;
+            outblocks += markblocks;
+            continue;
+        }
+        if (isBeat)
+        {
+            //           FDBG(SN(i)+SN(outblocks.length()));
+            outblocks += key;
+            kc++;
+        }
+
+        outblocks += oblocks(sp, b);
+        //        FDBG(outblocks);
     }
-    outblocks += "</span>";
+    outblocks += "</text></span>";
     //    FDBG(outblocks);
-    webgui.setMonitor(patternidt2, outblocks);
+    websetMonitor(patternidt2, outblocks);
+//    FDBG(outblocks);
+    if (!metison)
+        websetMonitor(nltidt, nlt + svgend);
 }
 String showRhythm(String what, int id)
 {
@@ -377,51 +510,23 @@ String showRhythm(String what, int id)
 }
 void showCCs(void)
 {
+    if (metison)
+        return;
     String header = " <svg height=\"40\" width=\"1000\">";
     String nl = header;
     for (int i = actpattern * maxticks, j = 0; i < (actpattern + 1) * maxticks; i++, j++)
     {
-        if (ccpattern[i][actgrp] < 1)
+        if (ccpattern[i] > 127 || ccpattern[i] == 0)
             continue;
-        String out = String(ccpattern[i][actgrp]) + "/" + String(ccval[i][actgrp]);
+        String out = String(ccpattern[i]) + "/" + String(ccval[i]);
         //       FDBG(SN(i) + " " + mid);
         nl += showText(out, 80 + j * 25.5, 15, "tiny");
     }
-    //    FDBG(header + nl + svgend);
-    webgui.setMonitor(ccidt, nl + svgend);
+    //   FDBG("show CC " + SN(nl.length()));
+    websetMonitor(ccidt, nl + svgend);
     //    FDBG(nl + svgend);
 }
-void showKeys(void)
-{
-    String header = " <svg height=\"50\" width=\"1600\">";
-    String nl, nlb, nlt;
-    int startpat = actpattern / 64;
-    for (int i = startpat, f = 0; i < MAXPAT; i += beatlength, f++)
-    {
-        byte mid = checkKey(i);
-        int j = i - startpat * 64;
-  //      FDBG("showkeys "+SN(i)+SN(mid)+SN(mettrigger));
-        //        if (i == 0)
-        //            FDBG(SN(i) + " " + SN(mid) + " " + SN(triggerNote[mid]));
-        if (patfiles[f * 4][actgrp] != "")
-            nlt += showText(patfiles[f * 4][actgrp], 12 + f * 90, 10 + (f % 2) * 15, "teeny");
-        if (mid > 0)
-        {
-            if (mid != mettrigger)
-                nl += showText(midiNamesLong[mid], 15 + j * 22.5, 20, "");
-            else
-            {
-                nl += showText(midiNamesLong[mid], 15 + j * 22.5, 20, "", "red");
-                //                FDBG(nl);
-            }
-        }
-        nlb += showText(String(i / 4 + zerobase), 15 + j * 22.5, 20, "");
-    }
-    //    FDBG(header + nl + svgend);
-    webgui.setMonitor(nltidt, header + nlt + svgend);
-    webgui.setMonitor(keyidt, header + nl + svgend);
-    webgui.setMonitor(beatidt, header + nlb + svgend);
-}
+
 String showGrid(int which)
 {
     String nl = showText(SN(g_scid * 2 + 1) + " " + scaleNames[g_scid] + " " + midiNamesFlat[scalebase] + " Scale", 300, 20);
@@ -463,14 +568,14 @@ String noteLine(bool scale = true)
         nl += showGrid(1);
         //   Serial.println(nl);
         Menus[SCALES]->scaleit(g_scid);
- //       FDBG("Scale " + SN(g_scid) + SN(scalebase));
+        //       FDBG("Scale " + SN(g_scid) + SN(scalebase));
         //       if (refresh)
         //           Serial.println("refreshing");
 
         for (int i = 0; i < g_nx; i++)
         {
             int no = g_ln[i] + scalebase;
-  //          FDBG(SN(i) + SN(no)+SN(g_ln[i]));
+            //          FDBG(SN(i) + SN(no)+SN(g_ln[i]));
             nl += showLine(left + 66 + i * 40, 60, left + 66 + i * 40, 110);
             nl += showNote(no, left + 50 + i * 40, 124);
             if (showflat)
@@ -487,14 +592,15 @@ String noteLine(bool scale = true)
         int x = left + 55;
         int st = actkeyidx / numc;
         st *= numc;
+        //        FDBG(chordselId[0]);
         for (int i = 0; i < 20; i++)
         {
             webgui.remove(chordselId[i]);
             webgui.remove(transId[i]);
         }
-
+  //      FSTACK;
         short pos = -1;
-        //       FDBG(SN(st));
+        //        FDBG(SN(st) + SN(maxrepl) + SN(numc) + SN(scalebase));
         for (int l = st; l < maxrepl && l < st + numc; l++)
         {
             int i = l;
@@ -504,23 +610,28 @@ String noteLine(bool scale = true)
             pos++;
             int b = (keychord[i] % 100 + scalebase) % 12;
             Chord *cc = chords[k];
+ //           FDBG(k);
             int ycp = 118;
             int t = 0;
             int rc = replchord[pos];
             int tr = (scalebase + transpose[pos] + b) % 12;
- //           if (transpose[pos]<0)
- //               FDBG(SN(pos) + " " + SN(transpose[pos]) + " " + SN(tr) + SN(scalebase));
+//            FSTACK;
+            //           if (transpose[pos]<0)
+            //               FDBG(SN(pos) + " " + SN(transpose[pos]) + " " + SN(tr) + SN(scalebase));
             //            FDBG(SN(scalebase) + " " + SN(i) + "? whole " + SN(mapwhole[scalebase][i]) + " -> " + SN(pos) + " " + isFlat[tr]);
             //            if (progressmode && (scalebase != 5 && scalebase != 0))
             //                tr -= isFlat[tr];
             //            else if (progressmode)
             //                tr += isFlat[tr];
-
+//            FDBG(SP(cc));
             if (cc != nullptr)
             {
                 nl += cc->showChord(x, ycp, b - t, false, false);
             }
+//            FDBG(rc);
             cc = chords[rc];
+
+ //           FSTACK;
             if (cc != nullptr)
             {
                 nl += cc->showChord(x + 40, ycp, tr, false, true);
@@ -535,7 +646,7 @@ String noteLine(bool scale = true)
                 //                FDBG("menuu " + SN(i - st));
             }
             x += 60;
-
+ //           FSTACK;
             nl += showLine(x, 140 + 62, x, 250);
             x += 28;
         }
@@ -577,10 +688,10 @@ String showConnections(void)
     nl += svgend;
     return nl;
 }
-String lowp = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px;\" d=\"m 16.178244,71.551319 45.751484,-0.741122 c 14.94349,-0.150156 29.942094,26.907563 40.318492,56.324953 2.35996,5.66496 3.40941,13.02681 8.00651,13.34013 l 29.35141,0.0449\"/>";
-String bandp = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px;\"d=\"m 19.087042,223.13999 h 9.725705 c 23.734618,-0.58737 36.478951,-31.91839 46.34013,-58.89282 2.071384,-6.393 2.656095,-9.43415 5.721004,-9.51065 4.540544,0.13778 5.557076,8.71974 7.437305,13.90017 5.856311,24.67856 28.666084,54.50715 45.481984,55.23488 l 8.5815,0.36582\"/>";
-String hip = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px; \" d=\"m 83.070363,76.209161 29.829427,-5.4e-5 c 4.12239,-0.198289 6.92242,-7.309269 8.53861,-11.984668 7.10281,-20.547172 21.66276,-58.005247 43.59187,-57.32891 l 41.33508,-0.185262\"/>";
-String expo = "<path  style=\"fill:none;stroke:#ffffff;stroke-width:2px\" d=\" M 11.621978, 84.23875 C 76.201161, 79.533011 138.5956, 65.669047 189.92466, 5.4201668 v 0 \" />";
+EXTMEM String lowp = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px;\" d=\"m 16.178244,71.551319 45.751484,-0.741122 c 14.94349,-0.150156 29.942094,26.907563 40.318492,56.324953 2.35996,5.66496 3.40941,13.02681 8.00651,13.34013 l 29.35141,0.0449\"/>";
+EXTMEM String bandp = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px;\"d=\"m 19.087042,223.13999 h 9.725705 c 23.734618,-0.58737 36.478951,-31.91839 46.34013,-58.89282 2.071384,-6.393 2.656095,-9.43415 5.721004,-9.51065 4.540544,0.13778 5.557076,8.71974 7.437305,13.90017 5.856311,24.67856 28.666084,54.50715 45.481984,55.23488 l 8.5815,0.36582\"/>";
+EXTMEM String hip = "<path style=\"fill:none;stroke:#ffffff;stroke-width:2px; \" d=\"m 83.070363,76.209161 29.829427,-5.4e-5 c 4.12239,-0.198289 6.92242,-7.309269 8.53861,-11.984668 7.10281,-20.547172 21.66276,-58.005247 43.59187,-57.32891 l 41.33508,-0.185262\"/>";
+EXTMEM String expo = "<path  style=\"fill:none;stroke:#ffffff;stroke-width:2px\" d=\" M 11.621978, 84.23875 C 76.201161, 79.533011 138.5956, 65.669047 189.92466, 5.4201668 v 0 \" />";
 String showShape(int sp)
 {
     String fx;

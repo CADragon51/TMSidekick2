@@ -88,7 +88,7 @@ bool inversion(bool emit = false)
 			//			DBG(String(actkeyidx) + " / " + String(maxrepl) + " " + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
 			//			STACK;
 			Menus[NEWMAP]->showmap(true);
-			webgui.setMonitor(idt, noteLine(false));
+			websetMonitor(idt, noteLine(false));
 		}
 	}
 	else

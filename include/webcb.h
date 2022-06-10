@@ -1,52 +1,45 @@
 extern void midiSilence(void);
 
-void update_pat()
+void update_pat(bool scroll = true)
 {
     if (menuState != SETTINGS)
         return;
     //   FDBG(__CALLER__);
+    int ap = actpattern;
+    if (patvoicelow[ap] < MAXVOI - 4 && !startOver)
+        startvoice = patvoicelow[ap];
 
-    webgui.remove(actgrpopt);
     webgui.remove(ccmetid);
     //   FDBG(__CALLER__);
     int end = startvoice + 4;
-    //   FDBG("u pat " + SN(start) + SN(end));
 
-    //   FDBG(__CALLER__);
-    for (int v = 0; v < MAXVOI; v++)
+    for (int v = 0; v < 4; v++)
     {
-        //      FDBG(__CALLER__);
-        for (int i = 0; i < MAXPAT; i++)
-            webgui.remove(patidt[v][i]);
-        //       FDBG(__CALLER__);
+
         webgui.remove(instopt[v]);
         webgui.remove(velopt[v]);
         webgui.remove(metopt[v]);
         webgui.remove(metid[v]);
-        webgui.remove(voiceidt[v]);
+        //       webgui.remove(voiceidt[v]);
     }
-    //  FDBG(__CALLER__);
-    actgrpopt = webgui.addOptions("Group", MAXGRP, counts + zerobase, &onOptionSelect, 0, 480, actgrp, "title");
-    //  FDBG(__CALLER__);
-
     showCCs();
-    showKeys();
-    showStatus(actpattern);
+    showStatus(actpattern, scroll);
 
     int ypos = 400;
-    webgui.setMonitor(patternidt, "Group " + String(actgrp + zerobase) + " Pattern #" + String(actpattern + zerobase));
+    websetMonitor(patternidt, " Pattern #" + String(actpattern + zerobase));
     for (int i = 0; i < maxticks; i++)
-        seqswitch[i] = ccpattern[actpattern * maxticks + i][actgrp] > 0;
+        seqswitch[i] = ccpattern[actpattern * maxticks + i] > 0;
     // ccpattern[actpattern * maxticks + i] > 0;
     ccmetid = webgui.addSwitches("steps", maxticks, seqswitch, &onSwitches, 680, ypos, "x", "nomonitor");
-    webgui.setMonitor(ccpatternidt, "CC " + String(lastcc < 128 ? lastcc : 0));
-    webgui.setMonitor(ccvpatternidt, "CC Value " + String(lastccval < 128 ? lastccval : 0));
+    //   websetMonitor(ccpatternidt, "CC " + String(lastcc < 128 ? lastcc : 0));
+    //   websetMonitor(ccvpatternidt, "CC Value " + String(lastccval < 128 ? lastccval : 0));
     //   FDBG(__CALLER__);
-
-    for (int v = startvoice; v < end && v < MAXVOI; v++)
+    int sv = startvoice >= 0 ? startvoice : 0;
+    end = sv + 4;
+    for (int v = sv, vv = 0; v < end && v < MAXVOI; v++, vv++)
     {
         //       FDBG("update voice " + SN(v));
-        int ypos = 450 + (v - startvoice) * 50;
+        int ypos = 450 + (vv)*50;
 
         int inx = minstr[v] - 2;
         if (inx < 1 || inx > 127)
@@ -54,37 +47,25 @@ void update_pat()
         if (pwx < 1 || pwx > 127)
             pwx = 16;
         //        FDBG("instr " + SN(inx) + " " + SN(mvelo[v]));
-        voiceidt[v] = webgui.addStringDisplay("", 180, ypos, "f");
-        webgui.setMonitor(voiceidt[v], String(v + zerobase));
-        instopt[v] = webgui.addOptions("instr", 127, perc, &onOptionSelect, 200, ypos, inx, "f");
-        velopt[v] = webgui.addOptions("velo", 128, counts, &onOptionSelect, 400, ypos, mvelo[v], "f");
-        metopt[v] = webgui.addOptions("Pattern", pwx, patvals, &onOptionSelect, 500, ypos, lastmet[v], "f", "metro"); //*Paras[i]->value)                                                                                                                                     //  FDBG(SN(pwx) + " " + patvals[0]);
-        int lb = actpattern / 4;
-        short bc = beatCount[lb * 4][actgrp];
-        for (int i = 0; i < MAXPAT; i++)
+        //      webgui.remove(voiceidt[v]);
+        websetMonitor(voiceidt[vv], String(v + zerobase));
+        instopt[vv] = webgui.addOptions("instr", 127, perc, &onOptionSelect, 200, ypos, inx, "f");
+        velopt[vv] = webgui.addOptions("velo", 128, counts, &onOptionSelect, 400, ypos, mvelo[v], "f");
+        metopt[vv] = webgui.addOptions("Pattern", pwx, patvals, &onOptionSelect, 500, ypos, lastmet[v], "f", "metro"); //*Paras[i]->value)                                                                                                                                     //  FDBG(SN(pwx) + " " + patvals[0]);
+
+        for (int i = 0; i < 2; i++)
         {
-            webgui.remove(patidt[v][i]);
-        } //       FDBG("ap " + SN(ap) + " " + SN(beatlength * numq) + " " + SN(beatlength) + " " + SN(numq));
-        for (int i = 0; i < bc; i++)
-        {
-            patidt[v][i] = webgui.addStringDisplay("Rhythm", 1000 + i * 150, ypos - 10, "f");
-        } //       FDBG("ap " + SN(ap) + " " + SN(beatlength * numq) + " " + SN(beatlength) + " " + SN(numq));
-          //(SN(actgrp) + SN(bc) + SN(actpattern) + SN(lb));
-        if (bc > 0)
-        {
-            for (int i = 0; i < bc && i < 2; i++)
-            {
-                String pas = pat2string(i, v);
-                String r = showRhythm(pas, i * 10 + v);
-                //               FDBG("pattern " + SN(i) + "/" + SN(v) + " " + pas + " " + r);
-                webgui.setMonitor(patidt[v][i], r);
-            }
+            String pas = pat2string(actpattern + i, v);
+            String r = showRhythm(pas, i * 10 + v);
+            //          FDBG("pattern " + SN(i) + "/" + SN(v) + " " + pas + " " + r);
+            websetMonitor(patidt[vv][i], r);
         }
+
         for (int i = 0; i < maxticks; i++)
         {
-            seqswitch[i] = seqpattern[actpattern * maxticks + i][v][actgrp] > 0;
+            seqswitch[i] = seqpattern[actpattern * maxticks + i][v] > 0;
         }
-        metid[v] = webgui.addSwitches("steps", maxticks, seqswitch, &onSwitches, 680, ypos, "x", "nomonitor");
+        metid[vv] = webgui.addSwitches("steps", maxticks, seqswitch, &onSwitches, 680, ypos, "x", "nomonitor");
         //        FDBG(__CALLER__);
     }
     //    FDBG(__CALLER__);
@@ -108,9 +89,12 @@ void addPattern(short patin)
 }
 bool cleared = false;
 void onMessage(String value, int id);
-void setDisplay(String out)
+void setDisplay(String outString)
 {
+    //    FDBG(outString);
+    int block = 1000;
     webgui.remove(men);
+    FSTACK;
     if (Menus[menuState]->isPara)
     {
         for (int i = 0; i < maxg; i++)
@@ -119,8 +103,27 @@ void setDisplay(String out)
     if (cliitem > 0)
         webgui.remove(cliitem);
     cliitem = webgui.addStringDisplay("cli", 50, 210, "f", "nomonitor");
-    webgui.setMonitor(cliitem, out);
+    int ol = outString.length();
+    //  FDBG(ol);
+    if (ol < block)
+        websetMonitor(cliitem, outString);
+    else
+    {
+        int n = ol / block;
+        //       int r = ol % block;
+        String tmp = outString.substring(0, block);
+        webgui.setMonitor(cliitem, tmp, 1);
+        //       FDBG(SN(r) + SN(n) + SN(ol));
+        for (int32_t i = 1; i < n; i++)
+        {
+            tmp = outString.substring(i * block, (i + 1) * block);
+            webgui.setMonitor(cliitem, tmp, 2);
+        }
+        tmp = outString.substring(n * block);
+        webgui.setMonitor(cliitem, tmp, 3);
+    }
     cleared = true;
+    addedDisplay = true;
 }
 void setBPM(int argc, String *argv)
 {
@@ -139,34 +142,65 @@ void setBPM(int argc, String *argv)
         patternc = -1;
     }
 }
-void clearPat(void)
+void clearPat(int from, int to)
 {
-    for (int p = 0; p < 128; p++)
+
+    for (int p = from; p <= to; p++)
     {
-        triggerNote[p] = 255;
-        voices[p] = 255;
+        beatCount[p] = 0;
+        patfiles[p] = "";
+        acttrigger[p] = 255;
+        if (actbeatID[p] > -1 && menuState == SETTINGS)
+            webgui.remove(actbeatID[p]);
+        actbeatID[p] = -1;
     }
-    for (int g = 0; g < MAXGRP; g++)
+
+    lastvoice = 0;
+    for (int v = 0; v < MAXVOI; v++)
     {
-        for (int p = 0; p < MAXPAT; p++)
+        for (int p = from; p <= 12 * to; p++)
         {
-            beatCount[p][g] = 0;
-            patfiles[p][g] = "";
-            acttrigger[p][g] = 255;
+            {
+                seqpattern[p][v] = -1;
+                if (!v)
+                    delaypattern[p] = 0;
+            }
         }
     }
+    update_pat(true);
+}
+void clearPat(void)
+{
+
+    for (int p = 0; p < 128; p++)
+    {
+        triggerNote[p] = -1;
+        voices[p] = 255;
+    }
+
+    for (int p = 0; p < MAXPAT; p++)
+    {
+        beatCount[p] = 0;
+        patfiles[p] = "";
+        acttrigger[p] = 255;
+        if (actbeatID[p] > -1 && menuState == SETTINGS)
+            webgui.remove(actbeatID[p]);
+        actbeatID[p] = -1;
+    }
+
     lastvoice = 0;
     for (int v = 0; v < MAXVOI; v++)
     {
         for (int p = 0; p < 12 * MAXPAT; p++)
         {
-            for (int g = 0; g < MAXGRP; g++)
             {
-                seqpattern[p][v][g] = -1;
+                seqpattern[p][v] = -1;
+                if (!v)
+                    delaypattern[p] = 0;
             }
         }
     }
-    update_pat();
+    update_pat(true);
 }
 void setTrans(int argc, String *argv)
 {
@@ -333,7 +367,7 @@ void showData(int argc, String *argv)
     if (argv[1].indexOf("drm") > -1)
     {
 
-        String event = showDrum();
+        String event = saveDrum("", true);
 
         String out = "<textarea class=\"scrollabletextbox\" name=\"note\" rows=10 cols=40>" + event + "</textarea>";
         setDisplay(out);
@@ -366,6 +400,7 @@ void impData(int argc, String *argv)
     impid = webgui.addInputString("import", &onMessage, 0, 200, "f", "scroll");
     impFile = argv[1];
     inimport = true;
+    addedDisplay = true;
     digitalWrite(13, HIGH);
 }
 void procVoice(String proc, int from, int to)
@@ -375,7 +410,7 @@ void procVoice(String proc, int from, int to)
         FDBG("copy voice from " + SN(from) + SN(to));
         for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
         {
-            seqpattern[i][to][actgrp] = seqpattern[i][from][actgrp];
+            seqpattern[i][to] = seqpattern[i][from];
         }
     }
     if (proc == "mv")
@@ -383,8 +418,8 @@ void procVoice(String proc, int from, int to)
         FDBG("move voice from " + SN(from) + SN(to));
         for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
         {
-            seqpattern[i][to][actgrp] = seqpattern[i][from][actgrp];
-            seqpattern[i][from][actgrp] = -1;
+            seqpattern[i][to] = seqpattern[i][from];
+            seqpattern[i][from] = -1;
         }
     }
     if (proc == "sw")
@@ -392,9 +427,9 @@ void procVoice(String proc, int from, int to)
         FDBG("swap voice from " + SN(from) + SN(to));
         for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
         {
-            short sw = seqpattern[i][to][actgrp];
-            seqpattern[i][to][actgrp] = seqpattern[i][from][actgrp];
-            seqpattern[i][from][actgrp] = sw;
+            short sw = seqpattern[i][to];
+            seqpattern[i][to] = seqpattern[i][from];
+            seqpattern[i][from] = sw;
         }
     }
     if (proc == "rm")
@@ -402,13 +437,14 @@ void procVoice(String proc, int from, int to)
         FDBG("delete voice from " + SN(from) + SN(to));
         for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
         {
-            seqpattern[i][from][actgrp] = -1;
+            seqpattern[i][from] = -1;
         }
     }
     actpattern = startpattern;
-    update_pat();
+    update_pat(false);
 }
 String mos = "";
+EXTMEM String g_out;
 void expData(int argc, String *argv)
 {
     webgui.remove(inbuts[3]);
@@ -445,14 +481,14 @@ void expData(int argc, String *argv)
         // Serial.println();
         encode_base64(midifile, l, midibase64);
         o = (char *)midibase64;
-        out = "<textarea class=\"scrollabletextbox\" id=\"export-data\" rows=10 cols=40 name=\"" + argv[2] + "\">" + o + "</textarea><input type=\"button\" id=\"dwn-btn\" value=\"export\" onclick=\"onclickbtn('" + argv[2] + "')\"/>";
-        setDisplay(out);
+        g_out = "<textarea class=\"scrollabletextbox\" id=\"export-data\" rows=10 cols=40 name=\"" + argv[2] + "\">" + o + "</textarea><input type=\"button\" id=\"dwn-btn\" value=\"export\" onclick=\"onclickbtn('" + argv[2] + "')\"/>";
+        setDisplay(g_out);
         //     FDBG(out);
         return;
     }
     File myFile = SD.open(argv[1].c_str());
     int l = myFile.size();
-    //               FDBG(argv[1] + SP(myFile));
+    FDBG(argv[1] + " " + SP(myFile));
     if (myFile)
     {
         myFile.readBytes((char *)midifile, l);
@@ -470,12 +506,13 @@ void expData(int argc, String *argv)
     // }
     encode_base64(midifile, l, midibase64);
     o = (char *)midibase64;
-    //   FDBG(l);
+    //   FDBG(o);
+    //   FDBG(o.length());
     //            FDBG(o);
-    if (l < 100000)
+    //    if (l < 100000)
     {
-        out = "<textarea class=\"scrollabletextbox\" id=\"export-data\" rows=10 cols=40 name=\"" + argv[1] + "\">" + o.substring(0, 5000) + "</textarea><input type=\"button\" id=\"dwn-btn\" value=\"export\" onclick=\"onclickbtn('" + argv[1] + "')\"/>";
-        setDisplay(out);
+        g_out = "<textarea class=\"scrollabletextbox\" id=\"export-data\" rows=10 cols=40 name=\"" + argv[1] + "\">" + o + "</textarea><input type=\"button\" id=\"dwn-btn\" value=\"export\" onclick=\"onclickbtn('" + argv[1] + "')\"/>";
+        setDisplay(g_out);
     }
 }
 
@@ -522,7 +559,7 @@ void onMessage(String value, int id)
         String starts = argv[0].substring(0, 2);
         FDBG("starts with " + starts + " # " + SN(argc));
         webgui.remove(cliitem);
-        cliitem = -1;
+        //       cliitem = -1;
         if (starts == "bp" && argc > 2)
         {
             setBPM(argc, argv);
@@ -584,7 +621,7 @@ void onMessage(String value, int id)
             g_scid = argv[1].toInt();
             g_scid = (g_scid - 1) / 2;
             Menus[SCALES]->scaleit(g_scid);
-            FDBG(SN(g_scid) + " " + scaleNames[g_scid]);
+            //           FDBG(SN(g_scid) + " " + scaleNames[g_scid]);
             saveTMS();
         }
         if (starts == "sa")
@@ -593,17 +630,39 @@ void onMessage(String value, int id)
             saveData(argc, argv);
             return;
         }
+        if (starts == "sx")
+        {
+            g_xoff = argv[1].toFloat();
+            oldsa = -1;
+            showStatus();
+            FDBG("g_xoff=" + SN(g_xoff));
+            return;
+        }
         if (starts == "vo")
         {
-            FDBG(argv[1] + " " + argv[2] + " " + SN(startpattern) + SN(actpattern));
+            FDBG("vo " + argv[1] + " " + argv[2] + " " + SN(startpattern) + SN(actpattern));
             if (startpattern > -1 && actpattern > startpattern)
                 procVoice(argv[1], argv[2].toInt(), argv[3].toInt());
             return;
         }
-        if (starts == "ag")
+        if (starts == "am")
         {
-            actgrp = argv[1].toInt();
-            update_pat();
+            int nv = argv[1].toInt();
+            //           FDBG(SN(startpattern) + SN(lastpattern) + SN(nv));
+            for (int a = startpattern * maxticks; a <= lastpattern * maxticks; a++)
+            {
+                for (int v = 0; v < MAXVOI; v++)
+                {
+                    if (seqpattern[a][v] > 0)
+                    {
+                        int vel = velpattern[a][v] + nv;
+                        if (vel > 127)
+                            vel = 127;
+                        seqpattern[a][v] = vel;
+                    }
+                }
+            }
+            return;
         }
         if (starts == "fl")
         {
@@ -633,7 +692,7 @@ void onMessage(String value, int id)
             {
                 newmapmode = true;
                 maxrepl = 0;
-                webgui.setMonitor(idt, noteLine(false));
+                websetMonitor(idt, noteLine(false));
             }
             else if (argv[1] == "a")
                 newmapmode = true;
@@ -645,7 +704,7 @@ void onMessage(String value, int id)
                 originalmode = false;
             else if (argv[1] == "p" && argc > 2)
             {
-               // mapComment = value;
+                // mapComment = value;
                 int pargc = SplitS(value.replace("-", " "), ' ', res, 20);
                 FDBG("split " + SN(argc) + res[2]);
                 static String progression = "I,II,III,IV,V,VI,VII,"
@@ -670,7 +729,7 @@ void onMessage(String value, int id)
                 int as = 2;
                 if (argv[2] == "n")
                     as = 3;
-                FDBG(__CALLER__);
+ //               FDBG(__CALLER__);
                 for (int i = as, r = 0; i < pargc; i++, r++)
                 {
                     //                FDBG(SN(i) + ":" + argv[i]+" "+SN(np));
@@ -686,7 +745,7 @@ void onMessage(String value, int id)
                             //                           FDBG(SN(p) + SN(k) + res[p]);
                             replchord[r] = g2k[p / 7];
                             FSTACK;
-                            FDBG("goal " + SN(k) + SN(keychord[0] % 100) + SN(keychord[r] % 100));
+                            FDBG("target " + SN(k) + SN(keychord[0] % 100) + SN(keychord[r] % 100));
                             transpose[r] = (k - (keychord[r] % 100) % 12) % 12;
                         }
                     }
@@ -694,7 +753,7 @@ void onMessage(String value, int id)
                 //               FDBG(__CALLER__);
                 //          for (int i = 0; i < maxrepl; i++)
                 //              FDBG(SN(i) + " " + SN(keychord[i]) + " " + SN(replchord[i]) + " " + SN(transpose[i]));
-                webgui.setMonitor(idt, noteLine(false));
+                websetMonitor(idt, noteLine(false));
             }
         }
         if (starts == "pc" && argc > 1)
@@ -719,7 +778,8 @@ void onMessage(String value, int id)
                 g_search = argv[1];
                 int n = loadDirectory(SD.open("/"), g_search, "");
                 res[0] = g_search + "/";
-                mapid = webgui.addOptions("files", n, res, &onOptionSelect, 50, 160, 0, "f");
+                preid = webgui.addOptions("files", n, res, &onOptionSelect, 50, 160, 0, "f");
+                addedDisplay = true;
             }
             bool exist = SD.exists(argv[1].c_str());
             FDBG(argv[1] + " ok?" + SB(exist));
@@ -750,9 +810,28 @@ void onMessage(String value, int id)
                 loadDrum(argv[1]);
                 if (menuState == SETTINGS)
                 {
-                    update_pat();
+                    update_pat(true);
                 }
                 return;
+            }
+        }
+        if (starts == "pv" && argc > 1)
+        {
+            mos = argv[2];
+            int r = argv[1].indexOf("/");
+            int rp = argv[1].indexOf(".");
+            int ra = argv[1].indexOf("*");
+            if (ra > -1 || (r > -1 && rp == -1))
+            {
+                if (!argv[1].startsWith("/"))
+                    argv[1] = "/" + argv[1];
+                if (argv[1].endsWith("/"))
+                    argv[1] = argv[1].substring(0, argv[1].length() - 1);
+                g_search = argv[1];
+                int n = loadDirectory(SD.open("/"), g_search, "");
+                res[0] = g_search + "/";
+                preid = webgui.addOptions("files", n, res, &onOptionSelect, 50, 160, 0, "f");
+                addedDisplay = true;
             }
         }
         if (starts == "pl" && argc == 2)
@@ -787,8 +866,9 @@ void onMessage(String value, int id)
             }
             // close the file:
             myFile.close();
-            String out = "<textarea style=\"overflow:scroll;\"class =\"scrollabletextbox\" name=\"note\" rows=10 cols=160>" + more + "</textarea>";
-            setDisplay(out);
+            g_out = "<textarea class =\"scrollabletextbox\" name=\"note\" rows=10 cols=160>" + more + "</textarea>";
+            FDBG(g_out.length());
+            setDisplay(g_out);
         }
         if (starts == "he")
         {
@@ -829,13 +909,16 @@ byte mstate = NONE;
 
 void onOptionSelect(int option, int id)
 {
-    FDBG("option " + SN(id) + " @ " + SN(menuState));
+    FDBG("option " + SN(id) + " @ " + SN(menuState) + SN(option));
     if (id == actgrpopt)
     {
-        actgrp = option;
-        if (patvoicelow[4 * (actpattern / 4)][actgrp] < MAXVOI - 4)
-            startvoice = patvoicelow[4 * (actpattern / 4)][actgrp];
-        update_pat();
+        actpattern = option * 64;
+        selopt = option;
+        if (patvoicelow[actpattern] < MAXVOI - 4)
+            startvoice = patvoicelow[actpattern];
+
+        sa = (actpattern / 64) * 64;
+        update_pat(true);
         return;
     }
     for (int v = startvoice; v < MAXVOI && v < startvoice + 4; v++)
@@ -851,13 +934,13 @@ void onOptionSelect(int option, int id)
                 bool pt = (patnames[option] & (1 << i)) > 0;
                 if (pt)
                 {
-                    seqpattern[i + pos][v][actgrp] = 100;
+                    seqpattern[i + pos][v] = 100;
                 }
                 else
-                    seqpattern[i + pos][v][actgrp] = -1;
+                    seqpattern[i + pos][v] = -1;
                 //           FDBG(metid[i]);
             }
-            update_pat();
+            update_pat(false);
             return;
         }
         if (id == instopt[v])
@@ -886,12 +969,12 @@ void onOptionSelect(int option, int id)
             if (transId[i] == id && mstate == TRANS)
             {
                 int b = keychord[tdx] % 100;
- //               int tr = (scalebase + transpose[tdx] + b) % 12;
+                //               int tr = (scalebase + transpose[tdx] + b) % 12;
 
-  //              FDBG("tdx " +SN(tdx)+ SN(transpose[tdx]) +SN(b%12)+ SN(option) + SN((tr) % 12));
+                //              FDBG("tdx " +SN(tdx)+ SN(transpose[tdx]) +SN(b%12)+ SN(option) + SN((tr) % 12));
                 if (option)
                     transpose[tdx] = option - 1 - b % 12;
-                                //               FDBG(SN(option) + " " + SN(tdx) + " " + SN(transpose[tdx]));
+                //               FDBG(SN(option) + " " + SN(tdx) + " " + SN(transpose[tdx]));
                 STACK;
                 webgui.remove(transId[i]);
                 mstate = NONE;
@@ -919,7 +1002,7 @@ void onOptionSelect(int option, int id)
         //       FDBG(String(id) + " Basenote selected: " + option);
         saveTMS();
     }
-    if (id == mapid)
+    if (id == preid)
     {
         //       replchord[actkeyidx] = chordIds[option];
 
@@ -942,19 +1025,21 @@ void onOptionSelect(int option, int id)
         }
         if (opt.indexOf(".mid") > -1)
         {
-            loadMIDI(g_search.replace("*", "") + "/" + opt, mos);
+            previewMIDI(g_search.replace("*", "") + "/" + opt);
+            return;
         }
         if (opt.indexOf(".drm") > -1)
         {
             loadDrum(file);
             if (menuState == SETTINGS)
             {
-                update_pat();
+                update_pat(true);
             }
         }
-        webgui.remove(mapid);
+        webgui.remove(preid);
         return;
     }
+
     if (id == scaleid)
     {
         g_scid = scFP[option];
@@ -1046,6 +1131,7 @@ void onButtonClick(int button, int id)
     refresh = true;
 }
 int backState = 0;
+extern void websetup(void);
 void onButtonRelease(int button, int id)
 {
     int inc = button == 0 ? 1 : -1;
@@ -1070,19 +1156,20 @@ void onButtonRelease(int button, int id)
             }
             if (chordselId[i] == id)
             {
- //               FDBG(__CALLER__ + " " + SN(xtransId[i]) + SN(replchord[i])+SN(53));
+                //               FDBG(__CALLER__ + " " + SN(xtransId[i]) + SN(replchord[i])+SN(53));
                 webgui.remove(chordselId[i]);
-                chordselId[i] = webgui.addOptions("Chord", 53, chordopt, &onOptionSelect, xtransId[i]+20, 144 + 200, replchord[i] + 1, "f");
+                chordselId[i] = webgui.addOptions("Chord", 53, chordopt, &onOptionSelect, xtransId[i] + 20, 144 + 200, replchord[i] + 1, "f");
                 mstate = CHORDS;
                 return;
             }
         }
-        if (actkeyidx > 12 && id == iab1)
+        //      FDBG(actkeyidx);
+        if (actkeyidx >= 12 && id == iab1)
         {
             actkeyidx -= 12;
             refresh = true;
         }
-        if (actkeyidx < maxrepl && id == iab2)
+        if (actkeyidx+12 < maxrepl && id == iab2)
         {
             actkeyidx += 12;
             refresh = true;
@@ -1097,7 +1184,7 @@ void onButtonRelease(int button, int id)
     if (id == imbb)
     {
         int nmenuState = Menus[menuState]->backstate;
-//        FDBG("new state: " + SN(Menus[menuState]->backstate));
+        //        FDBG("new state: " + SN(Menus[menuState]->backstate));
         menuState = nmenuState;
         Menus[menuState]->show(true, __CALLER__);
         newmapmode = false;
@@ -1111,36 +1198,120 @@ void onButtonRelease(int button, int id)
     }
     if (menuState == SETTINGS)
     {
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < MAXPAT; i++)
+        {
+            if (actbeatID[i] == id)
+            {
+#define pattrig (triggerNote[mettrigger] - 1)
+                if (!metison)
+                    actpattern = i;
+                //             FDBG("new " + SN(i));
+                if (patvoicelow[actpattern] < MAXVOI - 4)
+                    startvoice = patvoicelow[actpattern];
+                update_pat(false);
+                if (editMode||beatCount[i]==0)
+                    return;
+                if (metison && mettrigger == acttrigger[i])
+                {
+                    metison = false;
+                    metTimer.end();
+                    return;
+                }
+ //               FDBG(SN(i)+SN(beatCount[i]));
+                int ap = i;
+                for (int j = i; j >= 0;j--)
+                {
+                    if (acttrigger[j]<128)
+                    {
+                        i = j;
+                        break;
+                    }
+                }
+ //               FDBG(SN(i) + SN(beatCount[i]));
+                {
+                    if (actbeatID[pattrig] != -1)
+                    {
+                        webgui.remove(actbeatID[pattrig]);
+                        actbeatID[pattrig] = -1;
+                    }
+                    if (actbeatID[i] != -1)
+                    {
+                        webgui.remove(actbeatID[i]);
+                        actbeatID[i] = -1;
+                    }
+                    if (acttrigger[i]<128)
+                        mettrigger = acttrigger[i];
+                    //                   FDBG(mettrigger);
+                        actpattern = ap;
+                        patternc = ap * maxticks;
+                        if(ap!=i)
+                            oldtrigger = mettrigger;
+                        if (!metison)
+                        {
+                            metison = true;
+                            metTimer.begin(playPattern, mettime / 48);
+                            playSeq = true;
+                        }
+                }
+                return;
+            }
+        }
+        for (int i = 0; i < 10; i++)
         {
             if (movenext[i] == id)
             {
-                //               FDBG("Button " + SN(i));
-                int actalign = actpattern / beatlength;
-
-                if (i < 4)
+                FDBG("Button " + SN(i));
+                if (i == 0)
                 {
-                    if (i == 0)
-                        actpattern = (actalign - 1) * beatlength;
+                    if (editMode && startpattern > -1 && lastpattern > startpattern)
+                        clearPat(startpattern, lastpattern);
+                }
+                else if (i == 9)
+                {
+                    if (editMode && startpattern > -1 && lastpattern > startpattern)
+                    {
+                        int np = (lastpattern + 1 - startpattern);
+                        //                    FDBG(np);
+                        String pcol = coloring[lastColor % 4];
+                        //    FDBG(patfiles[actpattern] + " LC " + SN(actpattern) + SN(lastColor) + SN(pcol));
+                        lastColor++;
+                        for (int a = startpattern, b = np; a <= lastpattern; a++, b--)
+                        {
+                            beatCount[a] = b;
+                            patcolors[a] = pcol;
+                            //                       FDBG(SN(np) + " " + SN(a) + " set beats " + SN(beatCount[a]));
+                        }
+                    }
+                }
+                else if (i == 3)
+                {
+                    metison = false;
+                    metTimer.end();
+                    transport = STOPPED;
+                    loadMIDI(lastMidiFile, "n");
+                }
+                else if (i < 3)
+                {
                     if (i == 1)
                         actpattern--;
                     if (i == 2)
                         actpattern++;
-                    if (i == 3)
-                        actpattern = (actalign + 1) * beatlength;
                     if (actpattern < 0)
+                    {
                         actpattern = 0;
+                    }
                     if (actpattern > MAXPAT - 1)
+                    {
                         actpattern = MAXPAT - 1;
-                    if (patvoicelow[4 * (actpattern / 4)][actgrp] < MAXVOI - 4)
-                        startvoice = patvoicelow[4 * (actpattern / 4)][actgrp];
-                    update_pat();
+                    }
+                    if (patvoicelow[actpattern] < MAXVOI - 4)
+                        startvoice = patvoicelow[actpattern];
+                    startOver = false;
                 }
                 //              FDBG("actpat " + SN(actpattern));
-                if (i == 4 || i == 5)
+                else if (i == 4 || i == 5)
                 {
-                    //                    if (patvoice[actpattern][actgrp] < MAXVOI - 4 && startvoice < 0)
-                    //                       start = patvoice[actpattern][actgrp];
+                    startOver = true;
                     if (i == 4)
                         startvoice--;
                     if (i == 5)
@@ -1152,25 +1323,27 @@ void onButtonRelease(int button, int id)
                         startvoice = -1;
                     if (startvoice > MAXVOI - 4)
                         startvoice = MAXVOI - 4;
-                    update_pat();
                 }
                 //               FDBG("startvoice " + SN(startvoice));
                 //               FDBG("startpattern " + SN(startpattern) + " " + SN(i));
-                if (i == 6)
+                else if (i == 6)
                     startpattern = actpattern;
-                if (i == 7 && startpattern != -1 && actpat[0])
+                else if (i == 7 && startpattern != -1)
                 {
-                    int np = (actpattern + 1 - startpattern) / 4;
-                    //                    FDBG(np);
-                    for (int a = startpattern, b = 0; a < actpattern; a++, b++)
+                    lastpattern = actpattern - 1;
                     {
-                        beatCount[a][actgrp] = np - b / 4;
-                        //                       FDBG(SN(np) + " " + SN(a) + " set beats " + SN(beatCount[a]));
+                        for (int a = startpattern * maxticks, b = 0; a <= lastpattern * maxticks; a++, b++)
+                        {
+                            for (int v = 0; v < MAXVOI; v++)
+                                velpattern[a][v] = seqpattern[a][v];
+                        }
+                        //                       FDBG(SN(editMode) + SN(lastpattern));
                     }
-                    update_pat();
                 }
-                if (i == 8 || i == 6)
-                    update_pat();
+                else if (i == 8)
+                    saveDrum("TMS");
+
+                update_pat(true);
                 return;
             }
         }
@@ -1187,16 +1360,19 @@ void onButtonRelease(int button, int id)
             metTimer.end();
             //           if (metison)
             {
+                if (triggerNote[mettrigger] > 0)
+                    actpattern = triggerNote[mettrigger] - 1;
+                patternc = actpattern * maxticks;
+                //               FDBG(SN(mettrigger) + SN(triggerNote[mettrigger]-1) + SN(actpattern) + SN(patternc));
                 metTimer.begin(playPattern, mettime / 48);
-                playSeq = true;
-                patternc = -1;
             }
         }
         else
         {
             metTimer.end();
             midiSilence();
-            showStatus(actpattern);
+            if (menuState == SETTINGS)
+                showStatus(actpattern, false);
         }
         return;
     }
@@ -1298,7 +1474,7 @@ void onButtonRelease(int button, int id)
             }
             Menus[menuState]->backstate = backState;
             //            Menus[menuState]->show(true, __CALLER__);
- //           FDBG("from " + SN(Menus[menuState]->backstate) + " to " + SN(menuState));
+            //           FDBG("from " + SN(Menus[menuState]->backstate) + " to " + SN(menuState));
             return;
         }
     }
@@ -1310,16 +1486,16 @@ void onButtonRelease(int button, int id)
             saveTMS();
         }
     }
-    else if (id == file)
+    else if (id == openFile)
     {
         static bool notfile = true;
-        //        FDBG(cliitem);
-        if (cliitem == -1)
+        FDBG(cliitem);
+        if (!addedDisplay)
             webgui.remove(cli);
         else
         {
             webgui.remove(cliitem);
-            cliitem = -1;
+            addedDisplay = false;
             webgui.remove(mapid);
             webgui.remove(impid);
         }
@@ -1330,7 +1506,7 @@ void onButtonRelease(int button, int id)
             String outmen = "<t1 style=\" text-align : left;\">Options</t1> ";
             outmen += ((MenuPara *)Menus[menuState])->setMenu();
             men = webgui.addStringDisplay("Menu", 200, 90, "f");
-            webgui.setMonitor(men, outmen);
+            websetMonitor(men, outmen);
             maxg = 0;
             Menus[menuState]->createControl(__CALLER__);
             cleared = false;
@@ -1340,7 +1516,7 @@ void onButtonRelease(int button, int id)
             showstat = webgui.addStringDisplay("Status", 10, 200 + 80, "f");
             webgui.remove(inbuts[3]);
             inbuts[3] = webgui.addButtons("Rhythm/Settings", &onButtonRelease, 10, 150 + 80, "f", "hide");
-            webgui.setMonitor(showstat, "Status");
+            websetMonitor(showstat, "Status");
         }
         if (notfile)
         {
@@ -1359,7 +1535,6 @@ void onButtonRelease(int button, int id)
         case RECORDING:
             MidiEvent::starttime = 0;
             digitalWrite(13, HIGH);
-            ledstate[13] = 1;
             playSeq = true;
             STACK;
             lastEvent = 0;
@@ -1380,12 +1555,11 @@ void onButtonRelease(int button, int id)
         case STOPPED:
         {
             digitalWrite(13, LOW);
-            ledstate[13] = 0;
             String notes[16];
             STACK;
             metison = false;
             metTimer.end();
-            showStatus(actpattern);
+            showStatus(actpattern, false);
             sequences[lastEvent].init(0x90, sequences[lastEvent - 1]._note, 0, sequences[lastEvent - 1]._channel);
             sequences[lastEvent]._time = sequences[lastEvent - 1]._time + 10;
             lastEvent++;
@@ -1406,14 +1580,13 @@ void onButtonRelease(int button, int id)
             if (transport == RECORDING)
             {
                 digitalWrite(13, LOW);
-                ledstate[13] = 0;
             }
             //           nextEvent = 0;
             STACK;
             nextEvent = 0;
             SMF.looping(false);
             SMF.restart();
-            webgui.setMonitor(sbp, greenled);
+            websetMonitor(sbp, greenled);
             //           FDBG("Play to " + SN(lastEvent));
             //           FDBG(transport);
             STACK;
@@ -1424,7 +1597,7 @@ void onButtonRelease(int button, int id)
             SMF.restart();
             nextEvent = 0;
             //            transport = PLAYING;
-            webgui.setMonitor(sbp, greenled);
+            websetMonitor(sbp, greenled);
             STACK;
             break;
         case REWIND:
@@ -1432,7 +1605,6 @@ void onButtonRelease(int button, int id)
             nextEvent = 0;
             SMF.restart();
             digitalWrite(13, LOW);
-            ledstate[13] = 0;
             break;
         }
     }
@@ -1470,7 +1642,7 @@ void onSwitches(bool *value, int id)
     {
         if (id == actpatid)
         {
-            actpat[0] = value[0];
+            editMode = value[0];
             return;
         }
         //       short ap = (actpattern / (beatlength));
@@ -1482,23 +1654,23 @@ void onSwitches(bool *value, int id)
                 //               FDBG("old cc " +SN(i)+ SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
                 if (value[i] && ccpattern[p] == 0)
                 {
-                    ccpattern[p][actgrp] = lastcc;
-                    ccval[p][actgrp] = lastccval;
+                    ccpattern[p] = lastcc;
+                    ccval[p] = lastccval;
                     //                   FDBG("set cc " + SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
                 }
                 else if (!value[i])
                 {
-                    ccpattern[p][actgrp] = 0;
-                    ccval[p][actgrp] = 0;
+                    ccpattern[p] = 0;
+                    ccval[p] = 0;
                 }
             }
             showCCs();
         }
 
-        if (patvoicelow[4 * (actpattern / 4)][actgrp] < MAXVOI - 4)
-            startvoice = patvoicelow[4 * (actpattern / 4)][actgrp];
+        if (patvoicelow[actpattern] < MAXVOI - 4)
+            startvoice = patvoicelow[actpattern];
 
-        for (int v = 0; v < MAXVOI; v++)
+        for (int v = 0; v < 4; v++)
         {
             if (id == metid[v])
             {
@@ -1506,17 +1678,17 @@ void onSwitches(bool *value, int id)
                 {
                     int p = actpattern * maxticks + i;
                     //                  FDBG("set metro " + SN(value[i]) + " @" + SN(p));
-                    seqpattern[p][v][actgrp] = (value[i] ? mvelo[v] : -1);
+                    seqpattern[p][v + startvoice] = (value[i] ? mvelo[v + startvoice] : -1);
                     //                   if (seqpattern[p][v] > 0)
                     //                       seqpattern[p][v] = 0;
                 }
-                String pas = pat2string(actpattern, v);
-                String r = showRhythm(pas, actpattern * 10 + v);
+                String pas = pat2string(actpattern, v + startvoice);
+                String r = showRhythm(pas, actpattern * 10 + v + startvoice);
                 //               FDBG("pattern " + SN(i) + "/" + SN(v) + " " + pas + " " + r);
-                webgui.remove(patidt[v][0]);
-                int ypos = 450 + (v - startvoice) * 50;
-                patidt[v][0] = webgui.addStringDisplay("Rhythm", 1000, ypos - 10, "f");
-                webgui.setMonitor(patidt[v][0], r);
+                //              webgui.remove(patidt[v][0]);
+                //               int ypos = 450 + (v - startvoice) * 50;
+                // patidt[v][0] = webgui.addStringDisplay("Rhythm", 1000, ypos - 10, "f");
+                websetMonitor(patidt[v][0], r);
             }
         }
     }

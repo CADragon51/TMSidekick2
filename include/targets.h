@@ -274,7 +274,7 @@ public:
 			outData = midiNamesLong[sourceNote];
 		STACK;
 
-// FDBG("action " + SN(eType) + " " + SN(SYNTH) + " " + SN(sourceCC) + " " + SN(transposeit[sourceCH - 1]));
+//		FDBG("action " + SN(eType) + " " + SN(SYNTH) + " " + SN(sourceCC) + " " + SN(transposeit[sourceCH - 1]) + SN(sourceVelocity));
 #if 0 
 		if (eType == 2 && sourceCH > 0)
 		{
@@ -444,8 +444,8 @@ public:
 				}
 				if (ccpatternidt > 0)
 				{
-					webgui.setMonitor(ccpatternidt, "CC " + String(lastcc));
-					webgui.setMonitor(ccvpatternidt, "CC Value " + String(lastccval));
+					websetMonitor(ccpatternidt, "CC " + String(lastcc));
+					websetMonitor(ccvpatternidt, "CC Value " + String(lastccval));
 				}
 				//				FDBG("CC " + SN(lastcc) +SN(lastccval));
 				if (transport == RECORDING && lastEvent < 100000)

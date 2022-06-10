@@ -354,7 +354,7 @@ public:
             int ret = webgui.addNumericDisplay(name, posx + j * 80 + 65, posy + 200, "f", "nomonitor");
             Paras[i]->monid = ret;
 
-            webgui.setMonitor(ret, Paras[i]->format());
+            websetMonitor(ret, Paras[i]->format());
             webgui.remove(guiid[maxg]);
             guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vv, &onSlider, posx + j * 80, posy, "title", "controlx");
             if (guiid[maxg] == -1)

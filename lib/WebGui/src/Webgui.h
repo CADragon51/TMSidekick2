@@ -48,6 +48,8 @@ typedef struct {
 	CallbackTypeInt fnActionMousedown;
 }action_mousedown_t;
 
+#define __NAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#define __CALLER__ String(String(__LINE__) + " " + __NAME__)
 
 class Webgui{
 	public:
@@ -69,7 +71,7 @@ class Webgui{
 		int addStringDisplay(String name, int x, int y, String title, String classname = "monitor");
 
 		void setMonitor(int id, float value);
-		void setMonitor(int id, String value);
+		void setMonitor(int id, String value, byte type = 0);
 		void setMonitor(int id, bool value);
 		void remove(int id);
 		void reset();

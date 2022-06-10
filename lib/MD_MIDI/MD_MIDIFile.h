@@ -1079,8 +1079,7 @@ public:
    * \param mh  the address of the function to be called from the library.
    * \return No return data
    */
-  inline void setMidiHandler(void (*mh)(midi_event *pev)) { _midiHandler = mh;
-  };
+  inline void setMidiHandler(void (*mh)(midi_event *pev)) { _midiHandler = mh; };
 
   /** 
    * Set the SYSEX callback function

@@ -151,18 +151,23 @@ STACK;
 byte subwindows[7] = {MENU_VCFADSR, MENU_VCO, MENU_VCF, MENU_VCA, MENU_KEYS, MENU_SAMPLE, MENU_FILES};
 byte sublength[7] = {9, 16, 12, 8, 3, 5, 1};
 int lastn = 0;
-for (int i = 0; i < 7; i++)
+for (int i = 0; i < 100; i++)
 {
-    int m = subwindows[i];
-    pmstart[m] = lastn;
-    lastn = pmend[m] = lastn + sublength[i];
-    if (i == 0)
-        pmshape[m] = -1;
-    else if (i < 3)
-        pmshape[m] = 1;
-    else
-        pmshape[m] = 0;
+    pmstart[i] = 0;
+    pmend[i] =0;
 }
+    for (int i = 0; i < 7; i++)
+    {
+        int m = subwindows[i];
+        pmstart[m] = lastn;
+        lastn = pmend[m] = lastn + sublength[i];
+        if (i == 0)
+            pmshape[m] = -1;
+        else if (i < 3)
+            pmshape[m] = 1;
+        else
+            pmshape[m] = 0;
+    }
 // j2 = 0;
 // for (int i = 0; i < 84; i++)
 // {
@@ -173,26 +178,27 @@ for (int i = 0; i < 7; i++)
 for (int i = 0; i < 128; i++)
 {
     counts[i] = String(i);
-    triggerNote[i] = 255;
+    triggerNote[i] = -1;
     voices[i] = 255;
 }
 for (int i = 0; i < MAXVOI; i++)
     mvelo[i] = 100;
-for (int g = 0; g < MAXGRP; g++)
+
 {
     for (int i = 0; i < MAXPAT; i++)
     {
-        beatCount[i][g] = 0;
-        patvoicelow[i][g] = 128;
-        patvoicehigh[i][g] = 0;
-        acttrigger[i][g] = 128;
+        beatCount[i] = 0;
+        patvoicelow[i] = 128;
+        patvoicehigh[i] = 0;
+        acttrigger[i] = 128;
     }
     for (int i = 0; i < MAXPAT * maxticks; i++)
     {
-        ccpattern[i][g] = 0;
-        ccval[i][g] = 0;
+        ccpattern[i] = 0;
+        ccval[i] = 0;
+        delaypattern[i] = 0;
         for (int v = 0; v < MAXVOI; v++)
-            seqpattern[i][v][g] = 0;
+            seqpattern[i][v] = -1;
     }
 }
 for (int i = 0; i < maxticks; i++)
@@ -251,6 +257,6 @@ synparas[POLYMODE] = new synPara(POLYMODE, 1, "", false);
 STACK;
 for (int p = 0; p < NUMSYNTH && 0; p++)
 {
-    FDBG(synparas[p]->para);
+//    FDBG(synparas[p]->para);
     //			DBG(String(p) + " " + String((int)Paras[p]));
 }

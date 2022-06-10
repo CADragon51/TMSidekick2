@@ -100,10 +100,11 @@ unsigned long debounceDelay = 50;	// the debounce time; increase if the output f
 
 void setup()
 {
-	STACK;
+	FSTACK;
 	AudioNoInterrupts();
+	#if 1
 	//	float a = 0.125, d = 0.125, s = 0.5, r = 0.75, M = 1024 * 32 - 1, A = 256 * a, R = 256 * r, S = M * s, D = d * 256;
-	static byte leds[6] = {36, 34, 32, 30, 28, 13};
+ static byte leds[6] = {36, 34, 32, 30, 28, 13};
 	File frec;
 	Serial.begin(9600 * 16);
 	pinMode(led, OUTPUT);
@@ -225,10 +226,10 @@ void setup()
 	//	SMF.load("Audio.mid");
 	SMF.setMidiHandler(midiCallback);
 	SMF.setSysexHandler(sysexCallback);
-
+	FSTACK;
 	clearPat();
 	lastTime = millis();
-	STACK;
+	FSTACK;
 	createmap();
 	settrill();
 	setButtons();
@@ -246,8 +247,8 @@ void setup()
 	chordopt[0] = "Chord";
 	for (int c = 11; c < 63; c++)
 	{
-		chordopt[c-10] = chordName[chordIds[c]];
-		chordopt[c-10].replace(String((char)248), "&deg;").replace(String((char)171), "ø");
+		chordopt[c - 10] = chordName[chordIds[c]];
+		chordopt[c - 10].replace(String((char)248), "&deg;").replace(String((char)171), "ø");
 	}
 	FDBG("Trying Restore");
 	STACK;
@@ -306,6 +307,7 @@ void setup()
 	actpattern = 0;
 	loadDrum("TMS.drm");
 	loadMap(lastLoadMap);
+	#endif
 }
 #include "player.h"
 int to = 100;
@@ -322,24 +324,28 @@ void loop()
 	midi1.read();
 	usbMIDI.read();
 	MIDI_SER.read();
-	if (!playSeq && (transport == PLAYING || transport == REPEAT))
+	if (transport == PLAYING || transport == REPEAT)
 	{
-		if (!SMF.isEOF())
+		if (!playSeq )
 		{
-			if (SMF.getNextEvent())
-				tickMetronome();
+//			FDBG(SB(SMF.isEOF()));
+			if (!SMF.isEOF())
+			{
+				if (SMF.getNextEvent())
+					tickMetronome();
+			}
+			else
+			{
+				transport = STOPPED;
+			}
 		}
-		else
+		else if ((int)midiplay >= to3 && lastEvent > 0)
 		{
-			transport = STOPPED;
+			//		FDBG("lastplay "+SN(lastplay));
+			midiplay = midiplay - to3;
+			//		printA4(midiplay);
+			playnextMidi();
 		}
-	}
-	if (playSeq && (int)midiplay >= to3 && (transport == PLAYING || transport == REPEAT) && lastEvent > 0)
-	{
-		//		FDBG("lastplay "+SN(lastplay));
-		midiplay = midiplay - to3;
-		//		printA4(midiplay);
-		playnextMidi();
 	}
 #if 0
 	if (Menus[SETTINGS]->procMode == 3)
@@ -380,8 +386,7 @@ void loop()
 	//	if (!trigger)
 	//		fclick1.setOn(false);
 	loopc--;
-	#if 1
-	if (loopc<=0)
+	if (loopc <= 0)
 	{
 		loopc = to;
 
@@ -436,12 +441,12 @@ void loop()
 		if (Buttons[b])
 			Buttons[b]->loop();
 	}
-	#endif
-	//	DBG((int)Menus[menuState]);
 #endif
-	if (Menus[menuState])
-		Menus[menuState]->show(false, __CALLER__);
-#if 1
+	//	DBG((int)Menus[menuState]);
+#if 1 
+if (Menus[menuState])
+	Menus[menuState]->show(false, __CALLER__);
+
 	if ((int)web >= to2)
 	{
 		if (!foundserver)
@@ -467,7 +472,7 @@ void loop()
 					}
 				}
 				Serial.print(", port ");
-				DBG(Udp.remotePort());
+				FDBG(Udp.remotePort());
 
 				// read the packet into packetBufffer
 				Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);

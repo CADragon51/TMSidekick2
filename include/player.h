@@ -28,31 +28,29 @@ void playnextMidi(void)
         if (transport != REPEAT)
         {
             transport = STOPPED;
-            webgui.setMonitor(sbp, offled);
+            websetMonitor(sbp, offled);
             digitalWrite(13, LOW);
-            ledstate[13] = 0;
         }
     }
     //  FDBG("seq " +SN(e)+" "+ SN(sequences[e]._event));
     if (sequences[e]._event == 0x80 || sequences[e]._velocity==0)
     {
-        webgui.setMonitor(sbp, offled);
+        websetMonitor(sbp, offled);
         actNoteOff(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
         seqOn.replace(SN(sequences[e]._note) + ",", "");
     }
     else if (sequences[e]._event == 0x90)
     {
-        webgui.setMonitor(sbp, greenled);
+        websetMonitor(sbp, greenled);
         actNoteOn(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
         seqOn += SN(sequences[e]._note) + ",";
     }
     if (sequences[e]._event == 0xB0)
     {
-        webgui.setMonitor(sbp, blueled);
+        websetMonitor(sbp, blueled);
         actControlChange(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
     }
     digitalWrite(13, sequences[e]._event == 0x90 ? 1 : 0);
-    ledstate[13] = sequences[e]._event == 0x90 ? 1 : 0;
     //	FDBG(sequences[e]._id);
 }
 bool first = true;

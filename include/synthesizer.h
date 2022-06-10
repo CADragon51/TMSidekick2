@@ -93,20 +93,20 @@ public:
 					if (apara->name.indexOf("Att") > -1 || apara->name.indexOf("Dec") > -1 || apara->name.indexOf("Rel") > -1)
 					{
 						apara->setSynthVal();
-						webgui.setMonitor(apara->monid, apara->format());
+						websetMonitor(apara->monid, apara->format());
 					}
 				}
 			}
-			webgui.setMonitor(id - 1, para->format());
+			websetMonitor(id - 1, para->format());
 			para->setSynthVal();
 			if (para->name.indexOf("Att") > -1 || para->name.indexOf("Dec") > -1 || para->name.indexOf("Rel") > -1 || para->name.indexOf("Sus") > -1)
 			{
 				if (actSubmenu == MENU_VCA)
-					webgui.setMonitor(synthmen[para->sc], showADSR(2));
+					websetMonitor(synthmen[para->sc], showADSR(2));
 				else if (actSubmenu == MENU_VCF)
-					webgui.setMonitor(synthmen[para->sc], showADSR(1));
+					websetMonitor(synthmen[para->sc], showADSR(1));
 				else
-					webgui.setMonitor(synthmen[para->sc], showADSR(0));
+					websetMonitor(synthmen[para->sc], showADSR(0));
 			}
 			break;
 		case OPTION:
@@ -125,7 +125,7 @@ public:
 				//				int s = ((MenuSynth *)MenuPara::SynthMenu)->getValue(sp);
 				//				webgui.remove(synthmen[para->sc]);
 				//				synthmen[para->sc] = webgui.addStringDisplay(para->name + " " + shapes[s], 150, 100 + para->sc * 250);
-				//				webgui.setMonitor(synthmen[para->sc], showShape(sp));
+				//				websetMonitor(synthmen[para->sc], showShape(sp));
 			}
 			break;
 		case CHECKBOX:
@@ -137,12 +137,13 @@ public:
 	}
 	void setLength(int myID)
 	{
-		if (lmyid == myID)
-			return;
-		lmyid = myID;
-
+//		if (lmyid == myID)
+//			return;
+//		lmyid = myID;
+		STACK;
 		int s = pmstart[myID];
 		int e = pmend[myID];
+//		FDBG("start " + SN(s) + SN(e));
 		for (int k = s; k < e; k++)
 		{
 			int i = id2synth[k];
@@ -172,19 +173,21 @@ public:
 		SubMenu *sb = submenus[actsb];
 		omyID = sb->myID;
 		String name = sb->Paras[sb->myID]->name;
-
+		//FDBG("subm " + SP(submenus[actsb]) + " " + SN(actsb) + SN(name));
 		setLength(sb->myID);
+		STACK;
 		int widthl = maxiteml * 6;
 		int widthr = maxvall * 6;
 		int width = widthr + widthl;
 		if (width < 150)
 			width = 150;
-		for (int i = 0; i < 20 && 0; i++)
-		{
-			if (menuId[i] > 0)
-				webgui.remove(i);
-			menuId[i] = -1;
-		}
+		// for (int i = 0; i < 20 && 0; i++)
+		// {
+		// 	if (menuId[i] > 0)
+		// 		webgui.remove(i);
+		// 	menuId[i] = -1;
+		// }
+		STACK;
 
 		sb->showMenu(rot_pos);
 		String outmen = " <style>  table td  {  font-size : 14px; height:25px; width: " + String(width) + "px; } </style> ";
@@ -192,6 +195,7 @@ public:
 		outmen += "<table>";
 
 		outmen += synthstr + "</table";
+		STACK;
 		if (sb->myID == subVCO || sb->myID == subVCA || sb->myID == subVCF)
 		{
 			webgui.remove(men);
@@ -201,16 +205,18 @@ public:
 		if (sb->myID == subKeys || sb->myID == subSample)
 		{
 			webgui.remove(men);
-			webgui.setMonitor(smen, outmen);
+			websetMonitor(smen, outmen);
 		}
 		else
 			webgui.remove(smen);
+		STACK;
 		if (synthstr.length() > 0)
-			webgui.setMonitor(men, outmen);
+			websetMonitor(men, outmen);
 		//		FDBG("outmen.length()");
 		//		FDBG(outmen.length());
 		if (outmen.length() < 250)
 			webgui.remove(men);
+	//	FDBG(SN(synthstr.length()) + SN(outmen)); 
 	}
 	String synthstr;
 	void createControl(int myID)
@@ -317,13 +323,13 @@ public:
 				}
 				//					FDBG(SN(myID) + " " + SN(k) + " " + name + " " + SN(posx) + "," + SN(posy) + " " + SN(sci) + " " + SN(synthmen[sci]) );
 				STACK;
-				webgui.remove(synthmen[sci]);
+//				webgui.remove(synthmen[sci]);
 				String sh = showShape(i);
 				synthmen[sci] = webgui.addStringDisplay(synthParas[i], posx - 70, posy + 50, "titlex");
-				webgui.setMonitor(synthmen[sci], sh);
-				webgui.remove(guiid[maxg]);
-				guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, posx, posy, si, title, "nomonitor"); //*Paras[i]->value);
-																																									//				FDBG("set option " + SN(guiid[maxg]));																													//				FDBG(SN(synthmen[sci]) + " " + SN(guiid[maxg]) );
+				websetMonitor(synthmen[sci], sh);
+//				webgui.remove(guiid[maxg]);
+				guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, posx, posy, si, title,  "nomonitor");	 //*Paras[i]->value);
+//				FDBG(Paras[i]->name + " " + SN(si) + SN(guiid[maxg]) + SN(posx) + SN(posy) + SN(Paras[i]->vend + 1) + Paras[i]->form[0]);							 //				FDBG("set option " + SN(guiid[maxg]));																													//				FDBG(SN(synthmen[sci]) + " " + SN(guiid[maxg]) );
 				id2para[guiid[maxg]] = i;
 				Paras[i]->sc = sci;
 				sci++;
@@ -332,8 +338,8 @@ public:
 			if (t > 20)
 			{
 				wavenames[0] = "Select";
-				webgui.remove(guiid[maxg]);
-				guiid[maxg] = webgui.addOptions(Paras[i]->name, maxsamples, wavenames, &onOptionSelect, 450, posy + 40 + (i - 13) * 80, si, "title"); //*Paras[i]->value);
+//				webgui.remove(guiid[maxg]);
+				guiid[maxg] = webgui.addOptions(Paras[i]->name, maxsamples, wavenames, &onOptionSelect, 450, posy + 40 + (i - 13) * 80, si,"t","nomonitor"); //*Paras[i]->value);
 																																					  //				FDBG(Paras[i]->name + " " + SN(maxsamples) + " " + SN(i) + " " + SN(guiid[maxg]));
 				id2para[guiid[maxg]] = i;
 				Paras[i]->sc = sci;
@@ -344,9 +350,9 @@ public:
 		STACK;
 		if (shape == -1)
 		{
-			webgui.remove(synthmen[sci]);
+//			webgui.remove(synthmen[sci]);
 			synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 248, posy + 260, "f");
-			webgui.setMonitor(synthmen[0], showADSR(0));
+			websetMonitor(synthmen[0], showADSR(0));
 			posx = 200;
 		}
 
@@ -445,9 +451,9 @@ public:
 					sf = k - 27 - 4;
 					if (k == 29 + 4)
 					{
-						webgui.remove(synthmen[sci]);
+//						webgui.remove(synthmen[sci]);
 						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 570, spy, "f");
-						webgui.setMonitor(synthmen[sci], showADSR(1));
+						websetMonitor(synthmen[sci], showADSR(1));
 					}
 					Paras[i]->sc = sci;
 				}
@@ -461,9 +467,9 @@ public:
 					spx = 180;
 					if (k == 33 + 4)
 					{
-						webgui.remove(synthmen[sci]);
+//						webgui.remove(synthmen[sci]);
 						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 390, spy, "f");
-						webgui.setMonitor(synthmen[sci], showADSR(2));
+						websetMonitor(synthmen[sci], showADSR(2));
 					}
 					Paras[i]->sc = sci;
 				}
@@ -488,11 +494,11 @@ public:
 				if (k == 1 || k == 5)
 					spx += 40;
 			}
-			webgui.remove(Paras[i]->monid);
+//			webgui.remove(Paras[i]->monid);
 			int ret = webgui.addNumericDisplay(name, spx + 60 + sf * 80, spy + 200, "f", "nomonitor");
 			Paras[i]->monid = ret;
-			webgui.setMonitor(ret, Paras[i]->format());
-			webgui.remove(guiid[maxg]);
+			websetMonitor(ret, Paras[i]->format());
+//			webgui.remove(guiid[maxg]);
 			guiid[maxg] = webgui.addInputAnalog(name, 0, Paras[i]->fvend, Paras[i]->fvalue, &onSlider, spx + sf * 80, spy, "title", "controlx");
 			if (guiid[maxg] == -1)
 				guiid[maxg] = webgui.addInputAnalog(name, 0, Paras[i]->fvend, 0, &onSlider, spx + sf * 80, spy, "title", "controlx");
@@ -520,7 +526,7 @@ public:
 			{
 				//				DBG(SN(i) + " " + SN(j) + " " + Paras[i]->name);
 				sws[0] = Paras[i]->getValue();
-				webgui.remove(guiid[maxg]);
+//				webgui.remove(guiid[maxg]);
 				guiid[maxg] = webgui.addSwitches(Paras[i]->name, 1, sws, &onSwitches, inpx, inpy + j++ * inph, "f", "nomonitor");
 				id2para[guiid[maxg]] = i;
 				maxg++;
@@ -725,6 +731,7 @@ public:
 			((MenuSynth *)SynthMenu)->submenus[actSubmenu]->comment = "opened " + presetnames[preindex];
 			opencalled = false;
 		}
+	//	FSTACK;
 		if (para_sel && actPara)
 		{
 			if (!actPara->isFloat)
@@ -774,7 +781,7 @@ public:
 			actPara->setSynthVal();
 			return;
 		}
-
+//		FSTACK;
 		if (!force)
 		{
 			//			int orp = rot_pos;

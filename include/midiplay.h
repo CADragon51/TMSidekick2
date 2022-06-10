@@ -44,7 +44,7 @@ void midiCallback(midi_event *pev)
 		DEBUG(' ');
 	}
 	DBG(pev->data[0]);
-
+#endif
 
     if (pev->data[0] == 0xb0)
     {
@@ -61,33 +61,33 @@ void midiCallback(midi_event *pev)
             if (mP)
             {
                 mP->fvalue = fmap(pev->data[2], 0, 128, mP->fvstart, mP->fvend);
-                mP->setSynthVal(__CALLER__);
+                mP->setSynthVal();
             }
         }
 //        FDBG("control " + SN(pev->data[1]));
     }
-#endif
+
 //    FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
     if (pev->data[0] == 0xc0)
     {
         actProgramChange(pev->channel + 1, pev->data[1], curMMS);
     }
-    if (pev->data[0] == 0x80)
+    if (pev->data[0] == 0x80 || pev->data[2]==0)
     {
 //        FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
-        webgui.setMonitor(sbp, offled);
+        websetMonitor(sbp, offled);
         actNoteOff(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
     }
     if (pev->data[0] == 0xB0)
     {
-        webgui.setMonitor(sbp, blueled);
+        websetMonitor(sbp, blueled);
         actControlChange(pev->channel + 1, pev->data[1], 0, curMMS);
     }
-    else if (pev->channel != curMMS->outCH && curMMS->outCH != 0)
-        return;
-    if (pev->data[0] == 0x90)
+ //   else if (pev->channel != curMMS->outCH && curMMS->outCH != 0)
+ //       return;
+    if (pev->data[0] == 0x90 && pev->data[2]>0)
     {
-        webgui.setMonitor(sbp, greenled);
+        websetMonitor(sbp, greenled);
         actNoteOn(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
     }
 }
@@ -170,7 +170,6 @@ void tickMetronome(void)
         {
             lastBeatTime = millis();
             digitalWrite(13, HIGH);
-            ledstate[13] = 1;
             inBeat = true;
         }
     }
@@ -179,7 +178,6 @@ void tickMetronome(void)
         if ((millis() - lastBeatTime) >= 100) // keep the flash on for 100ms only
         {
             digitalWrite(13, LOW);
-            ledstate[13] = 0;
             inBeat = false;
         }
     }
