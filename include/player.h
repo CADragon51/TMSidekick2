@@ -28,26 +28,26 @@ void playnextMidi(void)
         if (transport != REPEAT)
         {
             transport = STOPPED;
-            websetMonitor(sbp, offled);
+            webgui.setMonitor(sbp, offled);
             digitalWrite(13, LOW);
         }
     }
     //  FDBG("seq " +SN(e)+" "+ SN(sequences[e]._event));
     if (sequences[e]._event == 0x80 || sequences[e]._velocity==0)
     {
-        websetMonitor(sbp, offled);
+        webgui.setMonitor(sbp, offled);
         actNoteOff(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
         seqOn.replace(SN(sequences[e]._note) + ",", "");
     }
     else if (sequences[e]._event == 0x90)
     {
-        websetMonitor(sbp, greenled);
+        webgui.setMonitor(sbp, greenled);
         actNoteOn(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
         seqOn += SN(sequences[e]._note) + ",";
     }
     if (sequences[e]._event == 0xB0)
     {
-        websetMonitor(sbp, blueled);
+        webgui.setMonitor(sbp, blueled);
         actControlChange(sequences[e]._channel, sequences[e]._note, sequences[e]._velocity, curMMS);
     }
     digitalWrite(13, sequences[e]._event == 0x90 ? 1 : 0);

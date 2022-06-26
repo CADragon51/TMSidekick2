@@ -112,7 +112,7 @@ void actNoteOn(signed char channel, signed char note, signed char velocity, Menu
 			actbeatID[patnote] = -1;
 		}
 		mettrigger = note;
-		FDBG(" act id " + SN(pattrig) + SN(actbeatID[pattrig]) + SN(patnote) + SN(actbeatID[patnote]));
+//		FDBG(" act id " + SN(pattrig) + SN(actbeatID[pattrig]) + SN(patnote) + SN(actbeatID[patnote]));
 		showStatus(actpattern, false);
 		return;
 	}

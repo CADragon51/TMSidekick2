@@ -491,15 +491,15 @@ public:
         case TRIGGER_1:
             //           if(debug==1)
             //           Serial.println(wavenames[s1index]);
-            s1index = (int)fvalue;
+            sindex[0] = (int)fvalue;
             //            playFile(wavenames[s1index], false);
             break;
         case TRIGGER_2:
             //           if(debug==1)
-            //            Serial.println(wavenames[s2index]);
-            //            playFile(wavenames[s2index], true);
-            s2index = (int)fvalue;
-            //           playFile(wavenames[s2index], true);
+            //            Serial.println(wavenames[sindex[1]]);
+            //            playFile(wavenames[sindex[1]], true);
+            sindex[1] = (int)fvalue;
+            //           playFile(wavenames[sindex[1]], true);
             break;
         case VCF_LO:
             if (aHIPara != nullptr)

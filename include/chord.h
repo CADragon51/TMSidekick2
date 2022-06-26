@@ -4,7 +4,7 @@
 extern Adafruit_SSD1306 display;
 extern String showText(String text, int x, int y, String tclass, String fill);
 extern String showNote(byte n, float basex, float basey);
-
+byte chypos[12] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
 class Chord
 {
 public:
@@ -94,12 +94,12 @@ public:
       if (n == 1 || n == 3 || n == 6 || n == 8 || n == 10)
       {
         //					off += 5;
-        display.drawBitmap(-8 + off, 50 - ypos[n] * 3 - 8, flat, 7, 13, 1);
+        display.drawBitmap(-8 + off, 50 - chypos[n] * 3 - 8, flat, 7, 13, 1);
       }
       if (sel)
-        display.fillRoundRect(off, 50 - ypos[n] * 3 - 2, 6, 5, 2, 1);
+        display.fillRoundRect(off, 50 - chypos[n] * 3 - 2, 6, 5, 2, 1);
       else
-        display.drawRoundRect(off, 50 - ypos[n] * 3 - 2, 6, 5, 2, 1);
+        display.drawRoundRect(off, 50 - chypos[n] * 3 - 2, 6, 5, 2, 1);
       if (n == 0)
         display.drawFastHLine(off - 2, 50, 10, 1);
       //        if (j == 1)
@@ -126,7 +126,7 @@ public:
     //   String pn = midiNamesFlat[nb] +name.replace(String((char)248), "&deg;").replace(String((char)171), "ø")+iname;
     if (!button)
       nl += showText(midiNamesFlat[nb] + getName(), x - 10, y + 21, "small", "white");
-    //  Serial.println(nl);
+ //   Serial.println(nl);
     return nl;
   }
   String getName(int inv = 0)
@@ -157,19 +157,19 @@ public:
     //	Serial.println(midiNames[basenote]+"done " + String(inverse) + "=>" + String(mid));
     return mid;
   }
-  byte note[16];
+  byte note[6];
   byte num = 0;
   byte basenote = 0;
   byte channel = 0;
-  int delta[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  byte ypos[12] = {0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
+  short delta[6] = {0, 0, 0, 0, 0, 0};
+
   String name;
-  int inverseID[6];
-  int _scid;
-  int _mscid;
+  short inverseID[6];
+  short _scid;
+  short _mscid;
   byte invid = 0;
   short _cindex = 0;
   String nn = "";
 };
-
+EXTMEM Chord *chords[2048];
 #endif

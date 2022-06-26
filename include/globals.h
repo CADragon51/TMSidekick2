@@ -2,6 +2,7 @@
 #define GLOBALS_H
 #include <MIDI.h>
 #include <Trill.h>
+
 #include "Adafruit_LEDBackpack.h"
 
 Adafruit_AlphaNum4 alpha4 = Adafruit_AlphaNum4();
@@ -12,6 +13,7 @@ class Menu;
 class Parameter;
 int debug = 0;
 bool showflat = true;
+
 #define SN(x) String(x) + " "
 #define SB(x) String(x ? "t" : "f")
 #define SP(x) String((int)x, HEX)
@@ -19,19 +21,20 @@ bool showflat = true;
 #define __CALLER__ String(String(__LINE__) + " " + __NAME__)
 
 #define DBG(x)
-String history = "help";
+	String history = "help";
 byte voices[128];
 // #define DBG(x)
 // 	if (debug == 1)
 // 	Serial.println(x)
 #define FDBG(x) \
-	Serial.println(x)
+	Serial.println(__CALLER__+" "+x)
 
 //#define FDBG(x)
-
-#define FSTACK Serial.println(__CALLER__)
-//#define STACK Serial.println(__CALLER__)
+String lastCall="stack";
+//#define FSTACK Serial.println(__CALLER__)
+//#define STACK lastCall = __CALLER__
 #define STACK
+#define FSTACK
 String MIDIinData;
 String outData;
 float g_xoff = 0.0;
@@ -273,7 +276,7 @@ EXTMEM String perc[127] = {
 	"[Shekere] Shakings",
 };
 #endif
-byte transposeit[32] = {
+EXTMEM byte transposeit[32] = {
 	0,
 	0,
 	0,
@@ -411,7 +414,7 @@ const byte id2synth[] PROGMEM = {
 
 };
 
-String fileparas[3] = {"Open", "Save", "Save as new"};
+EXTMEM String fileparas[3] = {"Open", "Save", "Save as new"};
 String prename = "";
 String seqFile = "";
 #define MENU_PARAMETERS submod
@@ -500,7 +503,7 @@ EXTMEM synPara *synparas[100];
 byte poly;
 Button *Buttons[10];
 // Chord *actChord;
-Chord *chords[2048];
+
 File root;
 bool refresh = false;
 bool isMap, scaled;
@@ -613,8 +616,8 @@ int commas[20];
 int commidx = 0;
 int bitidx = 0;
 bool playSeq = 0;
-EXTMEM byte midifile[100000];
-EXTMEM byte midibase64[100000];
+EXTMEM byte midifile[1000000];
+EXTMEM byte midibase64[1000000];
 int midiptr = 0;
 #define HAS_MORE_BYTES 0x80
 EXTMEM String lastLoadMap = "";
@@ -696,7 +699,7 @@ short maxrepl = 0;
 short actkeyidx = -1;
 EXTMEM short onnotes[128];
 // short offnotes[128];
-byte xpos[12], firstnote;
+EXTMEM byte xpos[12], firstnote;
 
 Trill trillSensor;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI_SER);
@@ -793,7 +796,7 @@ float metpart = 1;
 float mettime = 2000000;
 bool metison = false;
 bool metisback = false;
-short patternc = -1;
+short patternc = -1,newpatternc=-1;
 byte patcnt = 0;
 int actpattern = 0;
 int startpattern = -1;
@@ -804,7 +807,8 @@ EXTMEM byte velpattern[MAXPAT * maxticks][MAXVOI];
 byte zerobase = 1;
 byte minstr[MAXVOI];
 byte mvelo[MAXVOI];
-
+String currentDirectory = "/";
+String previousDir = "/";
 byte oldtrigger = 0;
 bool seqswitch[maxticks];
 EXTMEM int patidt[4][2];
@@ -840,12 +844,20 @@ int patternidt = 0;
 int patternidt2 = 0;
 int ccpatternidt = 0;
 int ccvpatternidt = 0;
-EXTMEM const String coloring[4] = {
+EXTMEM String coloring[6] = {
 	"cyan",
 	"#66CDAA",
 	"#008B8B",
 	"#5F9EA0",
-};
+	"gold",
+	"beige"};
+EXTMEM String orgcoloring[6] = {
+	"cyan",
+	"#66CDAA",
+	"#008B8B",
+	"#5F9EA0",
+	"gold",
+	"beige"};
 byte lastColor = 0;
 // **************************config *****************
 signed char lastMap = 0;
@@ -856,15 +868,15 @@ signed char lastMap = 0;
 signed char octave = 0;
 signed char mapID = 0;
 signed char semiTone = 0;
-signed char s1index = 1;
-signed char s2index = 1;
+signed char sindex[2] = {0, 0};
+signed char windex = 0;
 // String clefsvg;
 // String mapFile;
 // String scaleFile;
 // String preFile;
 // String eqFile;
-String wav1File;
-String wav2File;
+String wavFile[2];
+
 signed char preindex = -1;
 // signed char actPre = 0;
 // signed char recentPre = 0;

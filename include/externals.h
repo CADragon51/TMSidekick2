@@ -130,23 +130,24 @@ public:
 			myEnc->write(rawvalue);
 			oldraw = rawvalue;
 			//			Serial.println(rawvalue);
-			targets->action(on, 2, 0, 0, 0, extCC, __CALLER__, rawvalue, mapvalue);
+	//		targets->action(on, 2, 0, 0, 0, extCC, __CALLER__, rawvalue, mapvalue);
 			eventtype = 4;
 		}
 		if (myButton)
 		{
-			bool res = myButton->checkButton();
+			bool result = myButton->checkButton();
 			if (menuState == EXTERNALS)
-				webgui.setMonitor(extId[me + EXTSETTINGS], res ? redled : offled);
+				webgui.setMonitor(extId[me + EXTSETTINGS], result ? redled : offled);
 
 			if (myButton->hasChanged)
 			{
-				//				FDBG(SB(res));
-				if (res)
+
+				FDBG(SB(result) + " " + wavenames[0]);
+				if (result)
 				{
 					eventtype = 1;
 					rawvalue = 1;
-					playFile(wavenames[s1index], false);
+					playFile(wavenames[0], false);
 				}
 				else //////
 				{
@@ -268,9 +269,10 @@ public:
 			return;
 		//		STACK;
 		ov = rawvalue;
-		if (menuState == EXTERNALS)
+		if (menuState == EXTERNALS && me + EXTSETTINGS!=EXT_SWITCH)
 		{
-			webgui.setMonitor(extId[me+EXTSETTINGS], rawvalue);
+//			FDBG(extId[me + EXTSETTINGS]);
+			webgui.setMonitor(extId[me + EXTSETTINGS], rawvalue);
 		}
 		if (targets->SynthPara)
 		{

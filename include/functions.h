@@ -96,7 +96,7 @@ void setButtons(void)
 	Buttons[1] = new Button(35, 34, &octave, 1, 5, led2, 0);
 	Buttons[2] = new Button(33, 32, &semiTone, -1, -12, led3, 3);
 	Buttons[3] = new Button(31, 30, &semiTone, 1, 12, led4, 2);
-	Buttons[4] = new Button(7);
+	Buttons[4] = new Button(7); //encoder
 	Buttons[5] = new Button(29, 28, &Menus[SETTINGS]->procMode, 2, 3, led5, 5);
 //	Buttons[6] = new Button(4);
 	Buttons[6] = new Button(cancelButton);

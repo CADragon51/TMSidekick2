@@ -124,6 +124,7 @@ public:
             else
             {
                 float val = 0;
+                #if 0
                 if (Menus[SETTINGS]->hiRes > 0)
                 {
                     float tv = *actPara->tvalue;
@@ -134,6 +135,7 @@ public:
                     val = fmap(val, 0, 10000, actPara->fvstart, actPara->fvend);
                 }
                 else
+                #endif
                 {
                     val = Menus[ZONESETTINGS]->rawvalue;
                     val = fmap(val, 0, 1792, actPara->fvstart, actPara->fvend);
@@ -258,6 +260,7 @@ public:
         paraencoder->tick();
         int newPos = paraencoder->getPosition(__CALLER__);
         pararot_dir = (int)paraencoder->getDirection();
+        #if 0
         if (Menus[SETTINGS]->hiRes && !pararot_dir)
         {
             int val = Menus[HIRES]->rawvalue;
@@ -275,6 +278,7 @@ public:
                 DBG(pararot_dir);
             }
         }
+        #endif
         if (pararot_pos != newPos && pararot_dir)
         {
             pararot_pos = newPos;
@@ -353,8 +357,9 @@ public:
 
             int ret = webgui.addNumericDisplay(name, posx + j * 80 + 65, posy + 200, "f", "nomonitor");
             Paras[i]->monid = ret;
-
-            websetMonitor(ret, Paras[i]->format());
+            String out = Paras[i]->format();
+            webgui.setMonitor(ret, out);
+ //           FDBG(name + " " + SN(ret) + Paras[i]->format());
             webgui.remove(guiid[maxg]);
             guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vv, &onSlider, posx + j * 80, posy, "title", "controlx");
             if (guiid[maxg] == -1)
@@ -380,7 +385,7 @@ public:
             if (Paras[i]->vend == 1)
             {
                 sws[0] = *Paras[i]->value > 0;
-                DBG(Paras[i]->name + " " + SB(sws[0]) + " " + SP(Paras[i]));
+//                FDBG(Paras[i]->name + " " + SB(sws[0]) + " " + SP(Paras[i]));
                 webgui.remove(guiid[maxg]);
                 guiid[maxg] = webgui.addSwitches(Paras[i]->name, 1, sws, &onSwitches, inpx, inpy + j++ * inph, "f", "nomonitor");
                 id2para[guiid[maxg]] = i;
@@ -390,7 +395,7 @@ public:
             }
             else if (Paras[i]->form != 0)
             {
-                //               DBG(Paras[i]->name + " " + SN(Paras[i]->vend + 1) + " - " + SN(Paras[i]->form[0]) + " " + SN(*Paras[i]->value));
+ //               FDBG(Paras[i]->name + " " + SN(Paras[i]->vend + 1) + " - " + SN(Paras[i]->form[0]) + " " + SN(*Paras[i]->value));
                 int av = *Paras[i]->value;
                 int pl = 8 * Paras[i]->mv;
                 //                DBG("position " + SN(Paras[i]->mv) + " " + SN(pl) + " " + SN(inpx - pl));

@@ -15,7 +15,6 @@ public:
 		Paras[nump++] = new Parameter("MapCH", &mapCH, 1, 16);
 		Paras[nump++] = new Parameter("MIDI Ratchet", &isRat, 0, 1, selected, 2);
 		Paras[nump++] = new Parameter("TheoryBoard", &isTB, 0, 1, selected, 2);
-		Paras[nump++] = new Parameter("velocity", &useVel, 0, 1, selected, 2);
 		for (int i = 1; i < nump; i++)
 		{
 			items[i] = Paras[i]->name;
@@ -49,7 +48,7 @@ public:
 		mapCH = readrec(frec);
 		isTB = readrec(frec);
 		targets->restore(frec);
-		useVel = readrec(frec);
+		readrec(frec);
 	}
 	void action(bool on, String from)
 	{
@@ -62,7 +61,8 @@ public:
 				ch = splitCH;
 		}
 		STACK;
-		if (!useVel)
+//		FDBG(useVel);
+		if (!Menu::useVel)
 			SourceVelocity = 127;
 //		FDBG(SB(on) + " " + SN(sourceCH) + SN(outCH) + SN(mapCH) + SN(ch));
 		targets->action(on, eventtype, ch, sourceNote, SourceVelocity, SourceCC, from + "->" + __CALLER__, 80);
@@ -78,5 +78,5 @@ public:
 	signed char SourceCC = 0;
 	signed char isTB = 0;
 	signed char isRat = 0;
-	signed char useVel = 0;
+
 };

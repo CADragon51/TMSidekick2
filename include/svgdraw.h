@@ -96,7 +96,7 @@ String showLine(float x1, float y1, float x2, float y2, int width = 1)
     String ret = "<path d=\"" + x1P + x2P + "\" stroke-width=\"" + String(width) + " \" fill = \"none\" stroke=\"#ffffff\" /> ";
     //    DBG(ret);
     String swnw = "stroke-width=\"1 \" fill = \"none\" stroke=\"#ffffff\"";
-    return ret.replace(swnw, "_w_");
+    return ret.replace(swnw, "_w@");
 }
 
 String barNote(float x, float y, bool center, String color = "#000000")
@@ -154,21 +154,21 @@ String ta = " text-anchor = \"middle\" ";
 
 String showText(String text, int x, int y, String tclass = "", String fill = "#ffffff")
 {
-    String ret = "_x_" + String(x) + "_y_" + String(y) + "\" ";
+    String ret = "_x@" + String(x) + "_y@" + String(y) + "\" ";
     if (text == "w")
-        ret += "_n_";
+        ret += "_n@";
     else if (text == "b")
-        ret += "_f_";
+        ret += "_f@";
     else if (text == "#")
-        ret += "_s_";
+        ret += "_s@";
     else if (text == "&amp;")
         ret += "fill=\"" + fill + "\" class=\"clef\" >&amp;</text>";
     else if (tclass.indexOf("small") > -1)
-        ret += "_c_" + text + "</text>";
+        ret += "_c@" + text + "</text>";
     else if (tclass.indexOf("tiny") > -1)
-        ret += "_t_" + text + "</text>";
+        ret += "_t@" + text + "</text>";
     else if (tclass.indexOf("teeny") > -1)
-        ret += "_u_" + text + "</text>";
+        ret += "_u@" + text + "</text>";
     else
         ret += " text-anchor = \" middle \"  fill =\"" + fill + "\"   >" + text + "</text>";
     return ret;
@@ -329,19 +329,32 @@ String showFiles(int sp, float xpos, int &f)
 
     if (patfiles[sp] != "")
     {
-        nlt = showText(patfiles[sp], 12 + xpos, 10 + (f++ % 2) * 13, "teeny");
+        String fn = patfiles[sp];
+        fn.replace("_", " ").replace(".mid", "");
+        int ix =fn.lastIndexOf("/");
+        if (ix > -1)
+            nlt = showText(fn.substring(ix+1), 12 + xpos, 10 + (f++ % 2) * 13, "teeny");
+        else
+            nlt = showText(fn, 12 + xpos, 10 + (f++ % 2) * 13, "teeny");
         //        FDBG(SN(sp) + patfiles[sp] +" "+ SN(xpos) + SN(f));
     }
     return nlt;
 }
 
-String actblock[2] = {"&#x25BD;", "&#x25BC;"};
-String markact[2] = {"&#x25C7;", "&#x25C6;"};
-String header1600 = " <svg height=\"50\" width=\"1600\">";
+const String actblock[2] = {"&#x25BD;", "&#x25BC;"};
+const String markact[2] = {"&#x25C7;", "&#x25C6;"};
+const String header1600 = " <svg height=\"50\" width=\"1600\">";
+extern String outString;
+EXTMEM char outbuff[100000];
+EXTMEM char dirbuff[100000];
 void showStatus(int pos = actpattern, bool scroll = true)
 {
-    String outblocks = "<span style =\"color:beige;font-size:20px;\">";
-    String markblocks = "<text style =\"color:gold;font-size:20px;\">";
+    if (menuState != SETTINGS)
+        return;
+    FSTACK;
+    outString.setBuffer(outbuff, 100000);
+    outString = F("<span style =\"color:") + coloring[5] + F(";font-size:20px;\">");
+    String markblocks = F("<text style =\"color:") + coloring[4] + F(";font-size:20px;\">");
     String key = " |";
     String nlt = header1600;
     static int oldmid = -1;
@@ -386,9 +399,8 @@ void showStatus(int pos = actpattern, bool scroll = true)
     oldsa = sa;
     bool wasBlock = false;
     int f = 0;
-    String beige = "beige";
+
     String ocol = "";
-    String gold = "gold";
 
     for (int sp = sa; sp < se; sp++)
     {
@@ -432,22 +444,21 @@ void showStatus(int pos = actpattern, bool scroll = true)
             }
         }
         if (patcolors[sp] == "")
-            patcolors[sp] = patcolors[sp-1];
+            patcolors[sp] = patcolors[sp - 1];
 
         if (b && (!wasBlock || ocol != patcolors[sp]))
         {
-            outblocks += "</text><text style =\"color:" +
-                         patcolors[sp] + ";\">";
+            outString += F("</text><text style =\"color:") +
+                         patcolors[sp] + F(";\">");
             wasBlock = true;
             ocol = patcolors[sp];
-            if (patcolors[sp]=="")
-                FDBG(sp);
+//            if (patcolors[sp] == "")
+ //               FDBG(sp);
         }
         if (!b && wasBlock)
         {
             //           FDBG(SN(i)+SN(g)+patcolors[i][g]);
-            outblocks += "</text><text style =\"color:" +
-                         beige + ";\">";
+            outString += F("</text><text style =\"color:") + coloring[5] + F(";\">");
             wasBlock = false;
         }
         //       FSTACK;
@@ -473,30 +484,29 @@ void showStatus(int pos = actpattern, bool scroll = true)
                 kc++;
             }
 
-            markblocks += actblock[b] + "</text>";
+            markblocks += actblock[b] + F("</text>");
             if (!b)
                 oc++;
             else
                 bc++;
-            outblocks += markblocks;
+            outString += markblocks;
             continue;
         }
         if (isBeat)
         {
             //           FDBG(SN(i)+SN(outblocks.length()));
-            outblocks += key;
+            outString += key;
             kc++;
         }
 
-        outblocks += oblocks(sp, b);
+        outString += oblocks(sp, b);
         //        FDBG(outblocks);
     }
-    outblocks += "</text></span>";
-    //    FDBG(outblocks);
-    websetMonitor(patternidt2, outblocks);
-//    FDBG(outblocks);
+    outString += F("</text></span>");
+    //   FDBG(outString);
+    webgui.setMonitor(patternidt2, outString);
     if (!metison)
-        websetMonitor(nltidt, nlt + svgend);
+        webgui.setMonitor(nltidt, nlt + svgend);
 }
 String showRhythm(String what, int id)
 {
@@ -523,7 +533,7 @@ void showCCs(void)
         nl += showText(out, 80 + j * 25.5, 15, "tiny");
     }
     //   FDBG("show CC " + SN(nl.length()));
-    websetMonitor(ccidt, nl + svgend);
+    webgui.setMonitor(ccidt, nl + svgend);
     //    FDBG(nl + svgend);
 }
 
@@ -598,7 +608,7 @@ String noteLine(bool scale = true)
             webgui.remove(chordselId[i]);
             webgui.remove(transId[i]);
         }
-  //      FSTACK;
+        //      FSTACK;
         short pos = -1;
         //        FDBG(SN(st) + SN(maxrepl) + SN(numc) + SN(scalebase));
         for (int l = st; l < maxrepl && l < st + numc; l++)
@@ -610,12 +620,14 @@ String noteLine(bool scale = true)
             pos++;
             int b = (keychord[i] % 100 + scalebase) % 12;
             Chord *cc = chords[k];
- //           FDBG(k);
+        //    Serial.println(SN(k) + SP(cc));
+
+            //           FDBG(k);
             int ycp = 118;
             int t = 0;
             int rc = replchord[pos];
             int tr = (scalebase + transpose[pos] + b) % 12;
-//            FSTACK;
+            //            FSTACK;
             //           if (transpose[pos]<0)
             //               FDBG(SN(pos) + " " + SN(transpose[pos]) + " " + SN(tr) + SN(scalebase));
             //            FDBG(SN(scalebase) + " " + SN(i) + "? whole " + SN(mapwhole[scalebase][i]) + " -> " + SN(pos) + " " + isFlat[tr]);
@@ -623,15 +635,16 @@ String noteLine(bool scale = true)
             //                tr -= isFlat[tr];
             //            else if (progressmode)
             //                tr += isFlat[tr];
-//            FDBG(SP(cc));
+            //            FDBG(SP(cc));
             if (cc != nullptr)
             {
                 nl += cc->showChord(x, ycp, b - t, false, false);
             }
-//            FDBG(rc);
+            //            FDBG(rc);
             cc = chords[rc];
+            //          Serial.println(SN(rc) + SP(cc));
 
- //           FSTACK;
+            //           FSTACK;
             if (cc != nullptr)
             {
                 nl += cc->showChord(x + 40, ycp, tr, false, true);
@@ -646,7 +659,7 @@ String noteLine(bool scale = true)
                 //                FDBG("menuu " + SN(i - st));
             }
             x += 60;
- //           FSTACK;
+            //           FSTACK;
             nl += showLine(x, 140 + 62, x, 250);
             x += 28;
         }
@@ -657,7 +670,7 @@ String noteLine(bool scale = true)
     //    Serial.println(nl);
     //   Serial.println("show");
     String swnw = "stroke-width=\"1 \" fill = \"none\" stroke=\"#ffffff\"";
-    return nl.replace(swnw, "_w_");
+    return nl.replace(swnw, "_w@");
 }
 extern int centerx[10], centery[10];
 

@@ -1,16 +1,18 @@
 #pragma once
-class MenuZoneSet : public MenuPara {
+class MenuZoneSet : public MenuPara
+{
 public:
-	MenuZoneSet(int type, MenuTargetSet* ptargets) : MenuPara(ZONESETTINGS + type, "Zone " + String(type + 1), 0) {
+	MenuZoneSet(int type, MenuTargetSet *ptargets) : MenuPara(ZONESETTINGS + type, "Zone " + String(type + 1), 0)
+	{
 		Paras[nump++] = new Parameter("Target", ptargets->me);
 		paraID[nump - 1] = ptargets->me;
-		Paras[nump++] = new Parameter("CC",(signed char *) &CC, 0, 127);
+		Paras[nump++] = new Parameter("CC", (signed char *)&CC, 0, 127);
 		//     Paras[nump++] = new Parameter("Function", &Func, 0, 1,selected);
-		Paras[nump++] = new Parameter("Channel",(signed char *) &channel, 0, 15);
-		Paras[nump++] = new Parameter("From Note", (signed char *)&Note, 0, 127, midiNamesLong,128);
-		Paras[nump++] = new Parameter("to", (signed char *)&toNote, 0, 127, midiNamesLong,128);
-		Paras[nump++] = new Parameter("Pitch",(signed char *) &Pitch, 0, 1, selected,2);
-		Paras[nump++] = new Parameter("Modulation", (signed char *)&Mod, 0, 1, selected,2);
+		Paras[nump++] = new Parameter("Channel", (signed char *)&channel, 0, 15);
+		Paras[nump++] = new Parameter("From Note", (signed char *)&Note, 0, 127, midiNamesLong, 128);
+		Paras[nump++] = new Parameter("to", (signed char *)&toNote, 0, 127, midiNamesLong, 128);
+		Paras[nump++] = new Parameter("Pitch", (signed char *)&Pitch, 0, 1, selected, 2);
+		Paras[nump++] = new Parameter("Modulation", (signed char *)&Mod, 0, 1, selected, 2);
 		for (int i = 1; i < nump; i++)
 		{
 			insertItem(Paras[i]->name);
@@ -23,8 +25,10 @@ public:
 		targets->items[0] = items[0] + "->";
 		rawvalue = 0;
 	}
-	void action(bool on) {
-//		channel = 0;
+	void action(bool on)
+	{
+		//		channel = 0;
+		return;
 		if (!on)
 		{
 			DBG("Off ");
@@ -36,14 +40,14 @@ public:
 		}
 		else
 		{
-			//DBG("On ");
-			//DBG(me);
-			//DBG(" Touchsize: ");
-			//DBG(touchSize);
-			//DBG(" Target ");
-			//DBG(targets->UMO);
-			//DBG(" value: ");
-			//DBG(rawvalue);
+			// DBG("On ");
+			// DBG(me);
+			// DBG(" Touchsize: ");
+			// DBG(touchSize);
+			// DBG(" Target ");
+			// DBG(targets->UMO);
+			// DBG(" value: ");
+			// DBG(rawvalue);
 			state = 1;
 			eventtype = 1;
 		}
@@ -70,7 +74,7 @@ public:
 		else if (Note && on)
 		{
 			byte relnote = map(rawvalue, 0, 1792, notefrom, noteto);
-			if(oldvalue!=0)
+			if (oldvalue != 0)
 				targets->action(0, 0, channel, oldvalue, 0, 1, 0, 0);
 			targets->action(on, 1, channel, relnote, touchSize, 0, __CALLER__, map(rawvalue, 0, 1792, 0, 4096));
 			oldvalue = relnote;
@@ -78,7 +82,7 @@ public:
 		else if (targets->SynthPara)
 		{
 			byte pn = targets->SynthPara;
-			Parameter* aPara = MenuPara::SynthMenu->getPara(pn);
+			Parameter *aPara = MenuPara::SynthMenu->getPara(pn);
 			if (aPara == nullptr)
 				return;
 			//			DBG(String(pn) + " " +aPara->name + " " +String(aPara->isFloat?1:0));
@@ -86,7 +90,7 @@ public:
 			{
 				//				DBG(String((int)aPara->fvalue) + " " + items[0]);
 				//				DBG("audio " + String(eventtype) + " " + String(pn) + " " + mPara->Paras[pn]->name);// +" " + ((MenuPara*)Menus[SYNTHSETTINGS])->Paras[targets->SynthPara]->name);
-				float mapvalue = fmap(rawvalue,0, 1792, aPara->fvstart, aPara->fvend);
+				float mapvalue = fmap(rawvalue, 0, 1792, aPara->fvstart, aPara->fvend);
 				aPara->fvalue = mapvalue;
 				//			DBGf("values %f %d %d %f %f %f\n", rawvalue, emin, emax, aPara->fvstart, aPara->fvend, mapvalue);
 				//			DBG("audio "+ String(mapvalue) + " " + mPara->Paras[pn]->name);
@@ -137,5 +141,4 @@ public:
 	int me;
 	int state = 0;
 	int oldvalue = 0;
-
 };

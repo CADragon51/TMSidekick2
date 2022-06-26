@@ -1,3 +1,4 @@
+#include "wwstring.h"
 #include <Arduino.h>
 #include <splash.h>
 #include <gfxfont.h>
@@ -58,7 +59,8 @@ Parameter *Parameter::aRPara = 0;
 // int MenuPara::StrumTG = 0;
 signed char Menu::actSubmenu = 0;
 signed char Menu::useBPM = 0;
-signed char Menu::hiRes = 0;
+
+signed char Menu::useVel = 0;
 signed char Menu::isRat = 0;
 signed char Menu::procMode = 0;
 signed char Menu::sendAfter = 0;
@@ -97,16 +99,69 @@ int lastButtonState = LOW; // the previous reading from the input pin
 // milliseconds, will quickly become a bigger number than can be stored in an int.
 unsigned long lastDebounceTime = 0; // the last time the output pin was toggled
 unsigned long debounceDelay = 50;	// the debounce time; increase if the output flickers
+#include "T4_PowerButton.h"
+FASTRUN
+static void hardfault_handler_isr(void)
+{
+	Serial.println("Hardfault@" + lastCall);
+	Serial.flush();
+	while (true)
+		;
+}
+extern unsigned long _heap_start;
+extern unsigned long _heap_end;
+extern char *__brkval;
+
+int freeram()
+{
+	return (char *)&_heap_end - __brkval;
+}
+
+#if 0
+FASTRUN
+static void memoryfault_handler_isr(void)
+{
+	Serial.println("Memoryfault@" +String(freeram()));
+	Serial.flush();
+
+}
+#endif
+void myCallback(void)
+{
+	digitalWriteFast(13, 1);
+	Serial.println("Callback called - Switching off now.");
+	saveTMS();
+	saveDrum("TMS");
+	delay(100);
+}
+
+
+
+
 
 void setup()
 {
-	FSTACK;
+//	FSTACK;
 	AudioNoInterrupts();
-	#if 1
-	//	float a = 0.125, d = 0.125, s = 0.5, r = 0.75, M = 1024 * 32 - 1, A = 256 * a, R = 256 * r, S = M * s, D = d * 256;
+	Serial.begin(9600 * 16);
+	if (arm_power_button_pressed())
+	{
+		Serial.println("Restart after power down");
+	}
+	else
+	{
+		Serial.println("First power on");
+	}
+	_VectorsRam[3] = hardfault_handler_isr;
+//	_VectorsRam[4] = memoryfault_handler_isr;
+
+	pinMode(13, OUTPUT);
+
+	set_arm_power_button_callback(&myCallback); // Start callback
+#if 1
+												//	float a = 0.125, d = 0.125, s = 0.5, r = 0.75, M = 1024 * 32 - 1, A = 256 * a, R = 256 * r, S = M * s, D = d * 256;
  static byte leds[6] = {36, 34, 32, 30, 28, 13};
 	File frec;
-	Serial.begin(9600 * 16);
 	pinMode(led, OUTPUT);
 	Wire.begin();
 	alpha4.begin(0x70); // pass in the address
@@ -226,10 +281,10 @@ void setup()
 	//	SMF.load("Audio.mid");
 	SMF.setMidiHandler(midiCallback);
 	SMF.setSysexHandler(sysexCallback);
-	FSTACK;
+//	FSTACK;
 	clearPat();
 	lastTime = millis();
-	FSTACK;
+//	FSTACK;
 	createmap();
 	settrill();
 	setButtons();
@@ -266,7 +321,7 @@ void setup()
 			frec.close();
 		}
 	}
-	STACK;
+	FSTACK;
 
 	//	if (lastMap > 0 && lastMap < fx)
 	//		Menus[MAPPINGS]->mapit(__CALLER__);
@@ -292,7 +347,7 @@ void setup()
 	}
 	menuState = MAIN;
 	display.setTextColor(1, 0);
-	STACK;
+	FSTACK;
 	if (Menus[menuState])
 		Menus[menuState]->show(true, __CALLER__);
 		//	else if (debug == 1)
@@ -300,14 +355,16 @@ void setup()
 
 #include "synthsetup.h"
 	STACK;
-	root = SD.open("/");
+//	root = SD.open("/");
 	STACK;
-	printDirectory(root, 0);
-	STACK;
+//	printDirectory(root, 0);
+	FSTACK;
 	actpattern = 0;
 	loadDrum("TMS.drm");
 	loadMap(lastLoadMap);
 	#endif
+	Serial.print("freeram = ");
+	Serial.println(freeram());
 }
 #include "player.h"
 int to = 100;
@@ -318,8 +375,9 @@ void loop()
 {
 
 	// bool isplaying = false;
-#if 1
+
 	// bool anyactive = false;
+
 	myusb.Task();
 	midi1.read();
 	usbMIDI.read();
@@ -347,7 +405,7 @@ void loop()
 			playnextMidi();
 		}
 	}
-#if 0
+#if 0 
 	if (Menus[SETTINGS]->procMode == 3)
 	{
 		AudioNoInterrupts();
@@ -385,6 +443,7 @@ void loop()
 
 	//	if (!trigger)
 	//		fclick1.setOn(false);
+	#if 1
 	loopc--;
 	if (loopc <= 0)
 	{
@@ -443,14 +502,14 @@ void loop()
 	}
 #endif
 	//	DBG((int)Menus[menuState]);
-#if 1 
-if (Menus[menuState])
-	Menus[menuState]->show(false, __CALLER__);
+#if 1
+	if (Menus[menuState])
+		Menus[menuState]->show(false, __CALLER__);
 
 	if ((int)web >= to2)
 	{
 		if (!foundserver)
-			DBG("waiting for UDP...");
+			FDBG("waiting for UDP...");
 		if (Udp.parsePacket() && !foundserver)
 		{
 			int packetSize = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);

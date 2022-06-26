@@ -164,8 +164,8 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
             *para->tvalue = value;
         else
             para->fvalue = value;
-//        FDBG(para->name + " " + SN(type) + " " + SN(sp) + " " + SN(value) + para->dumpValue());
-        websetMonitor(id - 1, para->format());
+//        FDBG(para->name + " " + SN(sp) + " " + SN(id - 1) + " " + SN(value) + para->format());
+        webgui.setMonitor(id - 1, para->format());
         STACK;
         if (para->name == "BPM")
         {
@@ -211,9 +211,10 @@ void MenuPara::checkControl(int type, int id, int select, float value, bool swva
         //           DBG(scFP[(int)value]);
         break;
     case CHECKBOX:
-        DBG(SN(id) + " switched " + SN(sp) + " " + para->name);
+//        FDBG(SN(id) + " switched " + SN(sp) + " " + para->name+" " + SB(swval));
         *para->value = swval;
-        websetMonitor(idt, showConnections());
+        String s = showConnections();
+        webgui.setMonitor(idt, s);
         break;
     }
     STACK;
@@ -262,7 +263,8 @@ void MenuTargetSet::createControl(String caller)
         int ret = webgui.addNumericDisplay(name, posx + j * 80 + 65, posy + 200, "f", "nomonitor");
         Paras[i]->monid = ret;
 
-        websetMonitor(ret, Paras[i]->format());
+        webgui.setMonitor(ret, Paras[i]->format());
+//        FDBG(name+" "+SN(ret )+ Paras[i]->format());
         webgui.remove(guiid[maxg]);
         guiid[maxg] = webgui.addInputAnalog(name, vs, ve, vv, &onSlider, posx + j * 80, posy, "title", "controlx");
         if (guiid[maxg] == -1)
@@ -307,7 +309,7 @@ void MenuTargetSet::createControl(String caller)
             if (Paras[i]->name == "Beatlength")
             {
                 av = *Paras[i]->value - 1;
-                FDBG(Paras[i]->name + " " + SN(av));
+ //               FDBG(Paras[i]->name + " " + SN(av));
             }
             webgui.remove(guiid[maxg]);
             guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, inpx - pl - 15, inpy + j++ * inph, av, "f", "nomonitor"); //*Paras[i]->value);

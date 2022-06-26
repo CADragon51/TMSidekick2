@@ -6,7 +6,7 @@
 #define INPUTSTREAMSIZE 128
 #define MAXACTIONS 1000
 #define MAXMOUSEDOWNACTIONS 200
-
+extern String outString;
 #define CHECKCONNECTION(RET) \
 	if (!this->connected()){ \
 		Serial.println("Reconnecting to webgui server ...");\
@@ -69,10 +69,10 @@ class Webgui{
 		int addNeedleIndicator(String name, float minvalue, float maxvalue, int x, int y, String title, String classname = "monitor");
 		int addNumericDisplay(String name, int x, int y, String title , String classname = "monitor");
 		int addStringDisplay(String name, int x, int y, String title, String classname = "monitor");
-
 		void setMonitor(int id, float value);
-		void setMonitor(int id, String value, byte type = 0);
-		void setMonitor(int id, bool value);
+		void setMonitor(int id, String value);
+		void setMonitorT(int id, String &value, byte type);
+		//		void setMonitor(int id, bool value);
 		void remove(int id);
 		void reset();
 

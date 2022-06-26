@@ -33,7 +33,7 @@ bool inversion(bool emit = false)
 	STACK;
 	//	inData = midiNamesSharp[bn % 12] + String(id);
 
-	if (chords[id] != nullptr)
+	if (chords[id] != 0)
 	{
 		String cn = chords[id]->getName(true);
 		int inv = chords[id]->invid;
@@ -57,7 +57,7 @@ bool inversion(bool emit = false)
 		//		printA4(midiNamesFlat[bn % 12] + (id != 72 ? cn : ""));
 		for (int i = 0; i < maxrepl && !originalmode; i++)
 		{
-//			FDBG("key " + String(keychord[i]) + " ?" + String(id * 100 + bn % 12));
+			//			FDBG("key " + String(keychord[i]) + " ?" + String(id * 100 + bn % 12));
 
 			if (keychord[i] == id * 100 + bn % 12)
 			{
@@ -71,7 +71,7 @@ bool inversion(bool emit = false)
 		//		FDBG(__CALLER__);
 		if (menuState == NEWMAP || newmapmode)
 		{
-//			FDBG(SB(found) + " ===== " + SN(maxrepl));
+			//			FDBG(SB(found) + " ===== " + SN(maxrepl));
 			if ((!found && maxrepl < 96) || maxrepl == 0)
 			{
 				actkeyidx = maxrepl;
@@ -80,7 +80,7 @@ bool inversion(bool emit = false)
 				transpose[actkeyidx] = 0;
 				replchord[actkeyidx] = id;
 				maxrepl++;
-//				FDBG(String(actkeyidx) + " / " + String(maxrepl) + " " + SN(keychord[actkeyidx]) + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
+				//				FDBG(String(actkeyidx) + " / " + String(maxrepl) + " " + SN(keychord[actkeyidx]) + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
 			}
 			//		int ki = keychord[actkeyidx];
 			//		int ac = ki / 100;
@@ -88,7 +88,8 @@ bool inversion(bool emit = false)
 			//			DBG(String(actkeyidx) + " / " + String(maxrepl) + " " + String(transpose[actkeyidx]) + " " + String(replchord[actkeyidx]));
 			//			STACK;
 			Menus[NEWMAP]->showmap(true);
-			websetMonitor(idt, noteLine(false));
+			String nl = noteLine(false);
+			webgui.setMonitor(idt, nl);
 		}
 	}
 	else
@@ -212,7 +213,7 @@ void processChord(byte pchannel)
 		outData = MIDIinData;
 		if (!(menuState == NEWMAP || newmapmode))
 		{
-//			FDBG(pchannel);
+			//			FDBG(pchannel);
 			chords[id]->noteOn(note, pchannel, _velocity);
 		}
 		isChord = false;
@@ -260,13 +261,12 @@ void processChord(byte pchannel)
 			//			DBG(" --- " + SN(chordnotes[i]) + " -> " + SN(replchord[actkeyidx]));
 		}
 		STACK;
-	//	FDBG(pchannel);
+		//	FDBG(pchannel);
 		cho->noteOn(note, pchannel, _velocity);
 		//		baseNoteID[basenote] = replchord[actkeyidx];
 		isChord = false;
 		chordptr = 0;
 		isMap = true;
-
 	}
 	STACK;
 

@@ -93,20 +93,20 @@ public:
 					if (apara->name.indexOf("Att") > -1 || apara->name.indexOf("Dec") > -1 || apara->name.indexOf("Rel") > -1)
 					{
 						apara->setSynthVal();
-						websetMonitor(apara->monid, apara->format());
+						webgui.setMonitor(apara->monid, apara->format());
 					}
 				}
 			}
-			websetMonitor(id - 1, para->format());
+			webgui.setMonitor(id - 1, para->format());
 			para->setSynthVal();
 			if (para->name.indexOf("Att") > -1 || para->name.indexOf("Dec") > -1 || para->name.indexOf("Rel") > -1 || para->name.indexOf("Sus") > -1)
 			{
 				if (actSubmenu == MENU_VCA)
-					websetMonitor(synthmen[para->sc], showADSR(2));
+					webgui.setMonitor(synthmen[para->sc], showADSR(2));
 				else if (actSubmenu == MENU_VCF)
-					websetMonitor(synthmen[para->sc], showADSR(1));
+					webgui.setMonitor(synthmen[para->sc], showADSR(1));
 				else
-					websetMonitor(synthmen[para->sc], showADSR(0));
+					webgui.setMonitor(synthmen[para->sc], showADSR(0));
 			}
 			break;
 		case OPTION:
@@ -125,7 +125,7 @@ public:
 				//				int s = ((MenuSynth *)MenuPara::SynthMenu)->getValue(sp);
 				//				webgui.remove(synthmen[para->sc]);
 				//				synthmen[para->sc] = webgui.addStringDisplay(para->name + " " + shapes[s], 150, 100 + para->sc * 250);
-				//				websetMonitor(synthmen[para->sc], showShape(sp));
+				//				webgui.setMonitor(synthmen[para->sc], showShape(sp));
 			}
 			break;
 		case CHECKBOX:
@@ -205,13 +205,13 @@ public:
 		if (sb->myID == subKeys || sb->myID == subSample)
 		{
 			webgui.remove(men);
-			websetMonitor(smen, outmen);
+			webgui.setMonitor(smen, outmen);
 		}
 		else
 			webgui.remove(smen);
 		STACK;
 		if (synthstr.length() > 0)
-			websetMonitor(men, outmen);
+			webgui.setMonitor(men, outmen);
 		//		FDBG("outmen.length()");
 		//		FDBG(outmen.length());
 		if (outmen.length() < 250)
@@ -326,7 +326,7 @@ public:
 //				webgui.remove(synthmen[sci]);
 				String sh = showShape(i);
 				synthmen[sci] = webgui.addStringDisplay(synthParas[i], posx - 70, posy + 50, "titlex");
-				websetMonitor(synthmen[sci], sh);
+				webgui.setMonitor(synthmen[sci], sh);
 //				webgui.remove(guiid[maxg]);
 				guiid[maxg] = webgui.addOptions(Paras[i]->name, Paras[i]->vend + 1, (String *)Paras[i]->form, &onOptionSelect, posx, posy, si, title,  "nomonitor");	 //*Paras[i]->value);
 //				FDBG(Paras[i]->name + " " + SN(si) + SN(guiid[maxg]) + SN(posx) + SN(posy) + SN(Paras[i]->vend + 1) + Paras[i]->form[0]);							 //				FDBG("set option " + SN(guiid[maxg]));																													//				FDBG(SN(synthmen[sci]) + " " + SN(guiid[maxg]) );
@@ -352,7 +352,7 @@ public:
 		{
 //			webgui.remove(synthmen[sci]);
 			synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 248, posy + 260, "f");
-			websetMonitor(synthmen[0], showADSR(0));
+			webgui.setMonitor(synthmen[0], showADSR(0));
 			posx = 200;
 		}
 
@@ -453,7 +453,7 @@ public:
 					{
 //						webgui.remove(synthmen[sci]);
 						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 570, spy, "f");
-						websetMonitor(synthmen[sci], showADSR(1));
+						webgui.setMonitor(synthmen[sci], showADSR(1));
 					}
 					Paras[i]->sc = sci;
 				}
@@ -469,7 +469,7 @@ public:
 					{
 //						webgui.remove(synthmen[sci]);
 						synthmen[sci] = webgui.addStringDisplay("VCF and VCA ADSR", 390, spy, "f");
-						websetMonitor(synthmen[sci], showADSR(2));
+						webgui.setMonitor(synthmen[sci], showADSR(2));
 					}
 					Paras[i]->sc = sci;
 				}
@@ -497,7 +497,7 @@ public:
 //			webgui.remove(Paras[i]->monid);
 			int ret = webgui.addNumericDisplay(name, spx + 60 + sf * 80, spy + 200, "f", "nomonitor");
 			Paras[i]->monid = ret;
-			websetMonitor(ret, Paras[i]->format());
+			webgui.setMonitor(ret, Paras[i]->format());
 //			webgui.remove(guiid[maxg]);
 			guiid[maxg] = webgui.addInputAnalog(name, 0, Paras[i]->fvend, Paras[i]->fvalue, &onSlider, spx + sf * 80, spy, "title", "controlx");
 			if (guiid[maxg] == -1)
@@ -584,10 +584,10 @@ public:
 			actSubmenu = submod;
 			menuState = MAIN;
 			isshowing = MAIN;
-			if (Menus[SETTINGS]->hiRes > 0)
-			{
-				Menus[HIRES]->myEnc->write(imap(Menus[MAIN]->rot_pos, 0, 24, 0, 10000));
-			}
+			// if (Menus[SETTINGS]->hiRes > 0)
+			// {
+			// 	Menus[HIRES]->myEnc->write(imap(Menus[MAIN]->rot_pos, 0, 24, 0, 10000));
+			// }
 
 			saveTMS();
 			return;
@@ -649,16 +649,16 @@ public:
 			//			DBG("set enc " + String(actPara->isFloat ? "f" : "i") + "->" + String(actPara->fvend));
 			if (!actPara->isFloat && !cancel && oldfvalue == -1)
 				oldfvalue = oldval;
-			if (Menus[SETTINGS]->hiRes > 0 && actPara->isFloat)
-			{
-				float tv = actPara->getValue();
-				if (oldfvalue == -1 && !cancel)
-					oldfvalue = tv;
-				int setv = fmap(tv, 0, actPara->fvend, 0, 10000);
+			// if (Menus[SETTINGS]->hiRes > 0 && actPara->isFloat)
+			// {
+			// 	float tv = actPara->getValue();
+			// 	if (oldfvalue == -1 && !cancel)
+			// 		oldfvalue = tv;
+			// 	int setv = fmap(tv, 0, actPara->fvend, 0, 10000);
 
-				//				FDBG("set enc " + String(tv) + "->" + String(oldfvalue));
-				Menus[HIRES]->myEnc->write(setv);
-			}
+			// 	//				FDBG("set enc " + String(tv) + "->" + String(oldfvalue));
+			// 	Menus[HIRES]->myEnc->write(setv);
+			// }
 #endif
 		}
 		else if (cancel)
@@ -681,23 +681,23 @@ public:
 		paraencoder->tick();
 		int newPos = paraencoder->getPosition(__CALLER__);
 		pararot_dir = (int)paraencoder->getDirection();
-		if (Menus[SETTINGS]->hiRes && !pararot_dir)
-		{
-			int val = Menus[HIRES]->rawvalue;
-			pararot_dir = Menus[HIRES]->rawdir;
-			newPos = map(val, 1, 10000, 0, 24);
-			if (newPos == pararot_pos)
-				pararot_dir = 0;
-			if (pararot_dir && debug == 1)
-			{
-				Serial.print("pos:");
-				Serial.print(pararot_pos);
-				Serial.print(" new:");
-				Serial.print(newPos);
-				Serial.print(" dir:");
-				DBG(pararot_dir);
-			}
-		}
+		// if (Menus[SETTINGS]->hiRes && !pararot_dir)
+		// {
+		// 	int val = Menus[HIRES]->rawvalue;
+		// 	pararot_dir = Menus[HIRES]->rawdir;
+		// 	newPos = map(val, 1, 10000, 0, 24);
+		// 	if (newPos == pararot_pos)
+		// 		pararot_dir = 0;
+		// 	if (pararot_dir && debug == 1)
+		// 	{
+		// 		Serial.print("pos:");
+		// 		Serial.print(pararot_pos);
+		// 		Serial.print(" new:");
+		// 		Serial.print(newPos);
+		// 		Serial.print(" dir:");
+		// 		DBG(pararot_dir);
+		// 	}
+		// }
 		if (pararot_pos != newPos && pararot_dir)
 		{
 			pararot_pos = newPos;
@@ -750,19 +750,19 @@ public:
 			else
 			{
 				float val = 0;
-				if (Menus[SETTINGS]->hiRes > 0)
-				{
-					//					float tv = *actPara->tvalue;
-					//					float m=actPara->fvend/10000;
-					//					int setv = tv*m;
-					//					DBG("set enc "+String(m)+"->"+String(setv));
-					//					Menus[HIRES]->myEnc->write(setv);
-					val = Menus[HIRES]->rawvalue;
-					//				DBG(actPara->name + " = " + String(val) + " " + String(actPara->fvstart) + " " + String(actPara->fvend));
-					val = fmap(val, 0, 10000, actPara->fvstart, actPara->fvend);
-					//				DBG(actPara->name + " = " + String(val));
-				}
-				else
+				// if (Menus[SETTINGS]->hiRes > 0)
+				// {
+				// 	//					float tv = *actPara->tvalue;
+				// 	//					float m=actPara->fvend/10000;
+				// 	//					int setv = tv*m;
+				// 	//					DBG("set enc "+String(m)+"->"+String(setv));
+				// 	//					Menus[HIRES]->myEnc->write(setv);
+				// 	val = Menus[HIRES]->rawvalue;
+				// 	//				DBG(actPara->name + " = " + String(val) + " " + String(actPara->fvstart) + " " + String(actPara->fvend));
+				// 	val = fmap(val, 0, 10000, actPara->fvstart, actPara->fvend);
+				// 	//				DBG(actPara->name + " = " + String(val));
+				// }
+				// else
 				{
 					val = Menus[ZONESETTINGS]->rawvalue;
 					val = fmap(val, 0, 1792, actPara->fvstart, actPara->fvend);

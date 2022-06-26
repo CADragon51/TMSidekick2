@@ -151,7 +151,7 @@ void Webgui::_analyzeStream()
 	}
 
 	int sid = para[0].toInt();
-	//	Serial.println("sid " + SN(sid));
+	//Serial.println("sid " + SN(sid));
 	if (bitidx < 100)
 	{
 		if (eq)
@@ -170,7 +170,6 @@ void Webgui::_analyzeStream()
 
 void Webgui::_callAction(int id)
 {
-	//	Serial.println(String(id) + "#" + value + " " + String(mousedownaction ? "y" : "n"));
 	int valueInt = value.toInt();
 	float valueFloat = value.toFloat();
 
@@ -518,7 +517,30 @@ void Webgui::setMonitor(int id, float value)
 	_println(String(value));
 }
 
-void Webgui::setMonitor(int id, String value, byte type)
+void Webgui::setMonitor(int id, String value)
+{
+	// if (lastout[id] == value)
+	// {
+	// 	Serial.println(id);
+	// 	return;
+	// }
+	// lastout[id] = value;
+	if (id < 0 || id > idcounter)
+	{
+		Serial.println("invalid ID " + String(id));
+		return;
+	}
+	CHECKCONNECTION();
+	GUISTACK;
+	_print("SET_MONITOR:");
+	String sid;
+	sid = _idtostr(id);
+	_print(sid);
+	_print(",`");
+	_print(value);
+	_println("`");
+}
+void Webgui::setMonitorT(int id, String &value, byte type)
 {
 	// if (lastout[id] == value)
 	// {
@@ -545,24 +567,24 @@ void Webgui::setMonitor(int id, String value, byte type)
 	_println("`");
 }
 
-void Webgui::setMonitor(int id, bool value)
-{
-	CHECKCONNECTION();
-	GUISTACK;
-	_print("SET_MONITOR:");
-	String sid;
-	sid = _idtostr(id);
-	_print(sid);
-	_print(",");
-	if (value)
-	{
-		_println("on");
-	}
-	else
-	{
-		_println("off");
-	}
-}
+// void Webgui::setMonitor(int id, bool value)
+// {
+// 	CHECKCONNECTION();
+// 	GUISTACK;
+// 	_print("SET_MONITOR:");
+// 	String sid;
+// 	sid = _idtostr(id);
+// 	_print(sid);
+// 	_print(",");
+// 	if (value)
+// 	{
+// 		_println("on");
+// 	}
+// 	else
+// 	{
+// 		_println("off");
+// 	}
+// }
 void Webgui::remove(int id)
 {
 	CHECKCONNECTION();

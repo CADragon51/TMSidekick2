@@ -13,6 +13,7 @@ void settrill() {
 }
 
 void checkTrill() {
+
   trillSensor.read();
 
   if (trillSensor.getNumTouches() > 0 && trillSensor.getNumHorizontalTouches() > 0) {

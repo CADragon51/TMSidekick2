@@ -7,17 +7,7 @@
 #include <NativeEthernetUdp.h>
 #include "MD_MIDIFile.h"
 Webgui webgui;
-void callwebsetMonitor(int id, String s, String caller)
-{
-    if (id < 0)
-    {
-        Serial.println("invalid ID " + String(id) + " " + caller);
-        return;
-    }
-    webgui.setMonitor(id, s);
-}
-#define websetMonitor(i, s) callwebsetMonitor(i, s, __CALLER__)
- // initialize an instance of the class
+// initialize an instance of the class
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; // buffer to hold incoming packet,
 char ReplyBuffer[] = "acknowledged";       // a string to send back
 EthernetUDP Udp;
@@ -25,7 +15,7 @@ extern MD_MIDIFile SMF;
 // bool sws[] = {false, false, false, false, true};
 bool addedDisplay = false;
 short cli;
-short scaleid, baseid, mapid, cliitem,preid;
+short scaleid, baseid, mapid, cliitem,preid,cdid;
 short sliderID[45];
 short menuId[20];
 short transId[20];
@@ -48,7 +38,7 @@ float val = 0;
 unsigned int localPort = 6123;
 bool forward = true;
 bool inimport = false;
-String lastMidiFile;
+EXTMEM String lastMidiFile;
 EthernetClient client;
 IPAddress server(192, 168, 6, 2);
 EXTMEM String mapres[99];

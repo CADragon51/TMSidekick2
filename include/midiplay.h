@@ -75,19 +75,19 @@ void midiCallback(midi_event *pev)
     if (pev->data[0] == 0x80 || pev->data[2]==0)
     {
 //        FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
-        websetMonitor(sbp, offled);
+        webgui.setMonitor(sbp, offled);
         actNoteOff(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
     }
     if (pev->data[0] == 0xB0)
     {
-        websetMonitor(sbp, blueled);
+        webgui.setMonitor(sbp, blueled);
         actControlChange(pev->channel + 1, pev->data[1], 0, curMMS);
     }
  //   else if (pev->channel != curMMS->outCH && curMMS->outCH != 0)
  //       return;
     if (pev->data[0] == 0x90 && pev->data[2]>0)
     {
-        websetMonitor(sbp, greenled);
+        webgui.setMonitor(sbp, greenled);
         actNoteOn(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
     }
 }

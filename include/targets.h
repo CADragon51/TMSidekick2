@@ -442,10 +442,10 @@ public:
 					lastcc = sourceCC;
 					lastccval = sourceVelocity;
 				}
-				if (ccpatternidt > 0)
+				if (ccpatternidt > 0&&menuState==SETTINGS)
 				{
-					websetMonitor(ccpatternidt, "CC " + String(lastcc));
-					websetMonitor(ccvpatternidt, "CC Value " + String(lastccval));
+					webgui.setMonitor(ccpatternidt, "CC " + String(lastcc));
+					webgui.setMonitor(ccvpatternidt, "CC Value " + String(lastccval));
 				}
 				//				FDBG("CC " + SN(lastcc) +SN(lastccval));
 				if (transport == RECORDING && lastEvent < 100000)

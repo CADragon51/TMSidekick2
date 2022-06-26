@@ -8,8 +8,6 @@
 #include <chord.h>
 #include "Webgui.h"
 extern Webgui webgui; // initialize an instance of the class
-extern void callwebsetMonitor(int id, String s, String caller);
-#define websetMonitor(i, s) callwebsetMonitor(i, s, __CALLER__)
 extern EthernetClient client;
 extern IPAddress server;
 extern int scidtoix(int sc);
@@ -480,11 +478,11 @@ public:
 			rot_pos = Menus[parent]->rot_pos;
 			//		DBG("318 now :");
 			//			DBG(menuState);
-			if (Menus[SETTINGS]->hiRes > 0)
-			{
+			// if (Menus[SETTINGS]->useVel > 0)
+			// {
 
-				Menus[HIRES]->myEnc->write(map(Menus[menuState]->rot_pos, 0, 24, 0, 10000));
-			}
+			// 	Menus[HIRES]->myEnc->write(map(Menus[menuState]->rot_pos, 0, 24, 0, 10000));
+			// }
 			saveTMS();
 		}
 		else if (myID == MAIN)
@@ -928,7 +926,7 @@ public:
 							oldv[ml - 1] = (int)Menus[ZONESETTINGS + ml - 1]->rawvalue;
 							//								DBG("Touch " + String(ml) + " " + String(oldv[ml - 1]));
 							display.setCursor(64, i * 8);
-							setInvertMode(ml == rot_pos);
+//							setInvertMode(ml == rot_pos);
 							clearToEOL();
 							display.printf("%4d/%4d", (int)Menus[ZONESETTINGS + ml - 1]->rawvalue, (int)Menus[ZONESETTINGS + ml - 1]->touchSize);
 						}
@@ -975,6 +973,7 @@ public:
 			DBG(newPos);
 			rot_pos = newPos;
 		}
+		#if 0
 		if (Menus[SETTINGS]->hiRes && !rot_dir)
 		{
 			int val = Menus[HIRES]->rawvalue;
@@ -992,6 +991,7 @@ public:
 				DBG(rot_dir);
 			}
 		}
+		#endif
 		if (rot_pos != newPos && rot_dir)
 		{
 			rot_pos = newPos;
@@ -1107,7 +1107,7 @@ public:
 	static signed char contrast;
 	static signed char actSubmenu;
 	static signed char triggerCC;
-	static signed char hiRes;
+	static signed char useVel;
 	static signed char isRat;
 	static signed char procMode;
 	static signed char sendAfter;
