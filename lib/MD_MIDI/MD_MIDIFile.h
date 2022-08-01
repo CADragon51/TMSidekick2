@@ -638,7 +638,8 @@ protected:
   uint32_t  _startOffset;   ///< start of the track in bytes from start of file
   uint32_t  _currOffset;    ///< offset from start of the track for the next read of SD data
   bool      _endOfTrack;    ///< true when we have reached end of track or we have encountered an undefined event
-  uint32_t  _elapsedTicks;  ///< the total number of elapsed ticks since last event
+  uint32_t _elapsedTicks;   ///< the total number of elapsed ticks since last event
+  uint32_t _totalTicks;   ///< the total number of elapsed ticks since last event
   midi_event  _mev;         ///< data for MIDI callback function - persists between calls for run-on messages
 };
 
@@ -1079,7 +1080,7 @@ public:
    * \param mh  the address of the function to be called from the library.
    * \return No return data
    */
-  inline void setMidiHandler(void (*mh)(midi_event *pev)) { _midiHandler = mh; };
+  inline void setMidiHandler(void (*mh)(midi_event *pev,uint32_t ticks)) { _midiHandler = mh; };
 
   /** 
    * Set the SYSEX callback function
@@ -1135,7 +1136,7 @@ protected:
   void    synchTracks(void);  ///< synchronize the start of all tracks
   uint16_t tickClock(void);   ///< work out the number of ticks since the last event check
 
-  void (*_midiHandler)(midi_event *pev);   ///< callback into user code to process MIDI stream
+  void (*_midiHandler)(midi_event *pev,uint32_t ticks);   ///< callback into user code to process MIDI stream
   void (*_sysexHandler)(sysex_event *pev); ///< callback into user code to process SYSEX stream
   void (*_metaHandler)(const meta_event *pev); ///< callback into user code to process META stream
 

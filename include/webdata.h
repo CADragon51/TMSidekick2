@@ -39,6 +39,7 @@ unsigned int localPort = 6123;
 bool forward = true;
 bool inimport = false;
 EXTMEM String lastMidiFile;
+int lastbc = 0;
 EthernetClient client;
 IPAddress server(192, 168, 6, 2);
 EXTMEM String mapres[99];

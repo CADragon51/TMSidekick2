@@ -17,7 +17,7 @@ MD_MIDIFile SMF;
 
 #endif // USE_MIDI
 
-void midiCallback(midi_event *pev)
+void midiCallback(midi_event *pev, uint32_t ticks)
 // Called by the MIDIFile library when a file event needs to be processed
 // thru the midi communications interface.
 // This callback is set up in the setup() function.
@@ -45,7 +45,8 @@ void midiCallback(midi_event *pev)
 	}
 	DBG(pev->data[0]);
 #endif
-
+    if (ticks == 0)
+        lasttick = millis();
     if (pev->data[0] == 0xb0)
     {
         if (curMMS->targets->UMO)
@@ -54,7 +55,7 @@ void midiCallback(midi_event *pev)
             MIDI1.sendControlChange(pev->data[1], pev->data[2], pev->channel + 1);
         if (curMMS->targets->MO2)
             MIDI2.sendControlChange(pev->data[1], pev->data[2], pev->channel + 1);
-        if (curMMS->targets->SYNTH && pev->data[1]<NUMSYNTH)
+        if (curMMS->targets->SYNTH && pev->data[1] < NUMSYNTH)
         {
             Parameter *mP = MenuPara::SynthMenu->getPara(pev->data[1]);
             //					FDBG("CC " + SN(sourceCC));
@@ -64,17 +65,17 @@ void midiCallback(midi_event *pev)
                 mP->setSynthVal();
             }
         }
-//        FDBG("control " + SN(pev->data[1]));
+        //        FDBG("control " + SN(pev->data[1]));
     }
 
-//    FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
+    //    FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
     if (pev->data[0] == 0xc0)
     {
         actProgramChange(pev->channel + 1, pev->data[1], curMMS);
     }
-    if (pev->data[0] == 0x80 || pev->data[2]==0)
+    if (pev->data[0] == 0x80 || pev->data[2] == 0)
     {
-//        FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
+        //        FDBG(SN(pev->channel + 1) + " " + SP(pev->data[0]));
         webgui.setMonitor(sbp, offled);
         actNoteOff(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
     }
@@ -83,9 +84,9 @@ void midiCallback(midi_event *pev)
         webgui.setMonitor(sbp, blueled);
         actControlChange(pev->channel + 1, pev->data[1], 0, curMMS);
     }
- //   else if (pev->channel != curMMS->outCH && curMMS->outCH != 0)
- //       return;
-    if (pev->data[0] == 0x90 && pev->data[2]>0)
+    //   else if (pev->channel != curMMS->outCH && curMMS->outCH != 0)
+    //       return;
+    if (pev->data[0] == 0x90 && pev->data[2] > 0)
     {
         webgui.setMonitor(sbp, greenled);
         actNoteOn(pev->channel + 1, pev->data[1], pev->data[2], curMMS);
@@ -137,7 +138,7 @@ void midiSilence(void)
     for (int t = 0; t < 16; t++)
     {
         ev.channel = t;
-        midiCallback(&ev);
+        midiCallback(&ev, 0);
     }
     ev.size = 0;
     ev.data[ev.size++] = 0xb0;
@@ -146,13 +147,13 @@ void midiSilence(void)
     for (int t = 0; t < 16; t++)
     {
         ev.channel = t;
-        midiCallback(&ev);
+        midiCallback(&ev, 0);
     }
     for (v = 0; v < NUMVOICES; v++)
     {
         vcaenv[v]->noteOff();
         vcfenv[v]->noteOff();
-//        FDBG(SN(v) + " " + SB(vcfenv[v]->isSustain()));
+        //        FDBG(SN(v) + " " + SB(vcfenv[v]->isSustain()));
     }
     STACK;
 }
@@ -164,10 +165,21 @@ void tickMetronome(void)
     uint16_t beatTime;
 
     beatTime = 60000 / SMF.getTempo(); // msec/beat = ((60sec/min)*(1000 ms/sec))/(beats/min)
+    float lt = (4 * lastbc ) * beatTime;
+    float p = (millis() - lasttick) / (lt);
+    if(p>=1)
+    {
+        lasttick = millis();
+        p = (millis() - lasttick) / (lt);
+    }
+    int ip = (p * 100);
+    static int lastip = -1;
+
     if (!inBeat)
     {
         if ((millis() - lastBeatTime) >= beatTime)
         {
+            Serial.println(SN(p) + SN(lt) + SN(beatTime) + SN(millis() - lasttick)+SN(lastBeatTime));
             lastBeatTime = millis();
             digitalWrite(13, HIGH);
             inBeat = true;
@@ -181,4 +193,10 @@ void tickMetronome(void)
             inBeat = false;
         }
     }
+    if (lastip != ip)
+    {
+        String progress = "<meter id=\"file\" value=\"" + String(p) + "\"> 32% </meter>";
+        webgui.setMonitor(progidt, progress);
+    }
+    lastip = ip;
 }

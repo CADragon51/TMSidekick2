@@ -192,6 +192,10 @@ void websetup()
         keyidt = webgui.addStringDisplay("", 25, 730, "f");
         beatidt = webgui.addStringDisplay("", 25, 750, "f");
         nltidt = webgui.addStringDisplay("", 30, 675, "f");
+        beatnrid = webgui.addStringDisplay("", 0, 800, "f");
+        progidt = webgui.addStringDisplay("", 0, 820, "f");
+        String progress = "<meter id=\"file\" value=\"" + String(0) + "\"> 32% </meter>";
+        webgui.setMonitor(progidt, progress);
         for (int v = 0; v < 4; v++)
         {
             int ypos = 450 + (v)*50;

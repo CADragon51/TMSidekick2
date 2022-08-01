@@ -215,10 +215,10 @@ int loadDirectory(File dir, String search, int stn = 0)
         }
         else
         {
-          res[n - stn] = String(stn) + "&larr;";
-          dirres[n - stn] = String(stn) + "&larr;";
+ //         res[n - stn] = String(stn) + "&larr;";
+          dirres[n - stn] = stn - 20 > 0 ? String(stn - 20) + "&larr;" : " ";
           n++;
-          res[n - stn] = String(n - 3) + "&rarr;";
+ //         res[n - stn] = String(n - 3) + "&rarr;";
           dirres[n - stn] = String(n - 3) + "&rarr;";
           n++;
           return n - stn;

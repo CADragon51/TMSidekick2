@@ -957,6 +957,7 @@ void onMessage(String value, int id)
             else
             {
                 playSeq = false;
+                lasttick = millis();
                 SMF.restart();
             }
             transport = PLAYING;
@@ -1099,8 +1100,9 @@ void onOptionSelect(int option, int id)
         update_pat(true);
         return;
     }
-    for (int v = startvoice; v < MAXVOI && v < startvoice + 4; v++)
+    for (int vv = startvoice; vv < MAXVOI && vv < startvoice + 4; vv++)
     {
+        int v = (vv - startvoice) % 4;
         if (id == metopt[v])
         {
             //           FDBG("met " + SN(option) + " " + SN(patnames[option]));
@@ -1355,6 +1357,7 @@ void onButtonClick(int button, int id)
 }
 int backState = 0;
 extern void websetup(void);
+extern void playTime(void);
 void onButtonRelease(int button, int id)
 {
     int inc = button == 0 ? 1 : -1;
@@ -1812,6 +1815,8 @@ void onButtonRelease(int button, int id)
                     actNoteOff(sequences[0]._channel, notes[n].toInt(), 0, curMMS);
                 }
             }
+ //           playTimer.end();
+            Serial.println("time " + SN(millis() - lasttick));
             midiSilence();
             STACK;
         }
@@ -1824,8 +1829,11 @@ void onButtonRelease(int button, int id)
             //           nextEvent = 0;
             STACK;
             nextEvent = 0;
+            lasttick = millis();
             SMF.looping(false);
             SMF.restart();
+            lasttick = millis();
+ //           playTimer.begin(playTime, 1000);
             webgui.setMonitor(sbp, greenled);
             //           FDBG("Play to " + SN(lastEvent));
             //           FDBG(transport);
@@ -1833,8 +1841,10 @@ void onButtonRelease(int button, int id)
             break;
         case REPEAT:
             STACK;
+            lasttick = millis();
             SMF.looping(true);
             SMF.restart();
+//            playTimer.begin(playTime, 1000);
             nextEvent = 0;
             //            transport = PLAYING;
             webgui.setMonitor(sbp, greenled);
@@ -1842,6 +1852,7 @@ void onButtonRelease(int button, int id)
             break;
         case REWIND:
             STACK;
+            lasttick = millis();
             nextEvent = 0;
             SMF.restart();
             digitalWrite(13, LOW);

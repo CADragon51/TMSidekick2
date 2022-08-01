@@ -767,7 +767,11 @@ long vlength(byte *trk, int &x)
 
 extern void update_pat(bool);
 extern String lastMidiFile;
+extern int lastbc;
 byte posplus[MAXVOI];
+extern String showLine(float x1, float y1, float x2, float y2, int width);
+extern int sizeMIDI(String file, int &v);
+extern void playTime(void);
 void previewMIDI(String pfile)
 {
     FDBG("preview " + pfile);
@@ -785,12 +789,31 @@ void previewMIDI(String pfile)
         return;
     }
     //   FDBG("Loaded " + file + " " + SN(SMF.getTicksPerQuarterNote())+" "+lastMidiFile);
+    String header = " <svg height=\"200\" width=\"1400\">";
+    String svgend = "</svg>";
+    String nl = header;
+    //	nl += showLine(0, 50, 1220, 50);
+    float delta = 1220 / lastbc;
+    int inc = 1;
+    if (delta < 10)
+        inc = 4;
+    else if (delta < 20)
+        inc = 2;
+    for (int i = 0; i < lastbc + inc; i += inc)
+    {
+        nl += showLine(i * delta, 30, i * delta, 60,1);
+        nl += showText(String(i + 1), i * delta, 20,"","#ffffff");
+    }
+    nl += svgend;
+    webgui.setMonitor(beatnrid, nl);
     playSeq = false;
     //    FSTACK;
+    lasttick = millis();
     SMF.restart();
     //    FSTACK;
     SMF.looping(true);
     transport = REPEAT;
+ //   playTimer.begin(playTime, 1000);
     lastMidiFile = pfile;
     // Serial.print("freeram = ");
     // Serial.println(freeram());
@@ -877,7 +900,7 @@ void loadMIDI(String pfile, int np, int v)
             if (v >= MAXVOI)
                 continue;
             int lim = MAXPAT * maxticks;
-            if (as > lim)
+            if (as >= lim)
                 break;
             int pp = as / maxticks;
             if (patvoicelow[pp] > v)
@@ -929,8 +952,21 @@ int sizeMIDI(String file, int &v)
         }
         int type;
         byte event = 0;
-        int tempo = mh.division / 12;
-        short maxpc = 0;
+        float tempo = mh.division / 12;
+#if 0
+    
+        uint16_t beatTime;
+        int err = SMF.load(file.c_str());
+        if (err != MD_MIDIFile::E_OK)
+        {
+            FDBG("SMF load Error " + SN(err));
+
+            return 0;
+        }
+        beatTime = 60000 / SMF.getTempo();
+        tempo = (tempo*120)/beatTime;
+        #endif 
+        int maxpc = 0;
         byte note;
         // check actual length
         int s = fp - midifile;
@@ -988,9 +1024,9 @@ int sizeMIDI(String file, int &v)
             {
                 note = midifile[i++];
                 i++;
-                int pos = int(abstime / tempo + 0.5);
-                if (maxpc < pos)
-                    maxpc = pos;
+ //               int pos = int(abstime / tempo + 0.5);
+                if (maxpc < abstime)
+                    maxpc = abstime;
                 //           FDBG(SN(pos)+SN(note)+SN(v)+SN(maxpc));
                 for (int r = 0; r < 32; r++)
                 {
@@ -1007,15 +1043,17 @@ int sizeMIDI(String file, int &v)
             else
                 Serial.println(event, HEX);
         }
-        float np = float(maxpc) / 12.0 + 0.5;
-        int bcc = np;
-        if (bcc == 0)
-            bcc = 1;
+        float np = float(maxpc/tempo) / 12.0 + 0.5;
+        Serial.println("maxpc " + SN(maxpc));
+        lastbc = maxpc / mh.division + 1;
+        if (lastbc == 0)
+            lastbc = 1;
         //       FDBG(SN(v) + SN(bcc));
         //       FSTACK;
         // Serial.print("freeram = ");
         // Serial.println(freeram());
-        return bcc;
+        lastbc /= 4;
+        return np;
     }
 
     return 0;
@@ -1491,7 +1529,7 @@ void playPattern(void)
     }
     int aa = patcnt;
     // FDBG(SN(aa) + SN(patvoicelow[aa]) + " to " + SN(patvoicehigh[aa]));
-    for (int v = patvoicelow[aa]; v <= patvoicehigh[aa] && v < MAXVOI; v++)
+    for (int v = patvoicelow[aa]; v <patvoicehigh[aa] && v < MAXVOI; v++)
     //   for (int v = 0; v < MAXVOI; v++)
     {
         short ptest = seqpattern[patternc][v];

@@ -28,6 +28,7 @@ void playnextMidi(void)
         if (transport != REPEAT)
         {
             transport = STOPPED;
+ //           playTimer.end();
             webgui.setMonitor(sbp, offled);
             digitalWrite(13, LOW);
         }

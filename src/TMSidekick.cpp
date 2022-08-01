@@ -135,9 +135,7 @@ void myCallback(void)
 	delay(100);
 }
 
-
-
-
+void playTime(void);
 
 void setup()
 {
@@ -365,36 +363,31 @@ void setup()
 	#endif
 	Serial.print("freeram = ");
 	Serial.println(freeram());
+
 }
 #include "player.h"
 int to = 100;
 int to2 = 100;
 int to3 = 10;
 int loopc = to;
-void loop()
+void playTime(void)
 {
-
-	// bool isplaying = false;
-
-	// bool anyactive = false;
-
-	myusb.Task();
-	midi1.read();
-	usbMIDI.read();
-	MIDI_SER.read();
 	if (transport == PLAYING || transport == REPEAT)
 	{
-		if (!playSeq )
+		if (!playSeq)
 		{
-//			FDBG(SB(SMF.isEOF()));
+			//			FDBG(SB(SMF.isEOF()));
 			if (!SMF.isEOF())
 			{
 				if (SMF.getNextEvent())
 					tickMetronome();
+//				Serial.println(millis());
 			}
 			else
 			{
 				transport = STOPPED;
+				Serial.println("time " + SN(millis() - lasttick));
+				//				playTimer.end();
 			}
 		}
 		else if ((int)midiplay >= to3 && lastEvent > 0)
@@ -405,6 +398,19 @@ void loop()
 			playnextMidi();
 		}
 	}
+}
+void loop()
+{
+
+	// bool isplaying = false;
+
+	// bool anyactive = false;
+	playTime();
+	myusb.Task();
+	midi1.read();
+	usbMIDI.read();
+	MIDI_SER.read();
+
 #if 0 
 	if (Menus[SETTINGS]->procMode == 3)
 	{

@@ -791,6 +791,7 @@ short startvoice = -1;
 bool startOver = false;
 #define maxticks 12
 IntervalTimer metTimer;
+IntervalTimer playTimer;
 int numq = 1;
 float metpart = 1;
 float mettime = 2000000;
@@ -822,7 +823,7 @@ void click(void);
 // String pout = "";
 bool beatstate = false;
 byte mettrigger = 24;
-int keyidt, beatidt, ccidt, nltidt;
+int keyidt, beatidt, ccidt, nltidt, progidt, beatnrid;
 short mbase = 100, ledbase = mbase + 40, sbase = 200 + 35, tbase = sbase + 15, fbase = tbase + 40, xbase = fbase + 20, base5 = xbase + 80, base6 = base5 + 20, base7 = base6 + 30, base8 = base7 + 50, base9 = base8 + 50, base10 = base9 + 50;
 int mtarget = 0;
 int centerx[10], centery[10];
@@ -864,7 +865,7 @@ signed char lastMap = 0;
 // int lastScale = 0;
 // String metpat[8] = {"q", "ee", "3eee", "ssss", "e.ss", "esse", "e3sss", "3sss e"};
 // short metval[8] = {1, 65, 273, 585, 1281, 1601, 1353, 85};
-
+uint32_t lasttick = 0;
 signed char octave = 0;
 signed char mapID = 0;
 signed char semiTone = 0;

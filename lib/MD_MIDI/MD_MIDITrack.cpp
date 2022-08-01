@@ -65,6 +65,7 @@ bool MD_MFTrack::getEndOfTrack(void)
 void MD_MFTrack::syncTime(void)
 {
   _elapsedTicks = 0;
+  _totalTicks = 0;
 }
 
 void MD_MFTrack::restart(void)
@@ -73,6 +74,7 @@ void MD_MFTrack::restart(void)
   _currOffset = 0;
   _endOfTrack = false;
   _elapsedTicks = 0;
+  _totalTicks = 0;
 }
 
 bool MD_MFTrack::getNextEvent(MD_MIDIFile *mf, uint16_t tickCount)
@@ -104,8 +106,8 @@ bool MD_MFTrack::getNextEvent(MD_MIDIFile *mf, uint16_t tickCount)
   // accumulation of errors, as we only check for _elapsedTicks being >= ticks,
   // giving positive biased errors every time.
   _elapsedTicks -= deltaT;
-
-  DUMP("\ndT: ", deltaT);
+  _totalTicks += _elapsedTicks
+      DUMP("\ndT: ", deltaT);
   DUMP(" + ", _elapsedTicks);
   DUMPS("\t");
 
@@ -151,7 +153,7 @@ void MD_MFTrack::parseEvent(MD_MIDIFile *mf)
     DUMPX(" ", _mev.data[2]);
 #if !DUMP_DATA
     if (mf->_midiHandler != nullptr)
-      (mf->_midiHandler)(&_mev);
+      (mf->_midiHandler)(&_mev, _totalTicks);
 #endif // !DUMP_DATA
   break;
 
@@ -167,7 +169,7 @@ void MD_MFTrack::parseEvent(MD_MIDIFile *mf)
 
 #if !DUMP_DATA
     if (mf->_midiHandler != nullptr)
-      (mf->_midiHandler)(&_mev);
+      (mf->_midiHandler)(&_mev, _totalTicks);
 #endif
   break;
 
@@ -197,7 +199,7 @@ void MD_MFTrack::parseEvent(MD_MIDIFile *mf)
 
 #if !DUMP_DATA
     if (mf->_midiHandler != nullptr)
-      (mf->_midiHandler)(&_mev);
+      (mf->_midiHandler)(&_mev, _totalTicks);
 #endif
   }
   break;
